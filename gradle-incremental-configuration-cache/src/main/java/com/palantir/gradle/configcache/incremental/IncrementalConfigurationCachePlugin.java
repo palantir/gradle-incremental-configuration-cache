@@ -47,7 +47,6 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
 
         project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
             if (!enabledTasks.contains(task.getPath())) {
-                System.out.println("CC disabled for: " + task.getName());
                 task.notCompatibleWithConfigurationCache(String.format(
                         "Configuration cache is not enabled for this task, as it was not included in %s",
                         ALLOW_LIST_FILE));
