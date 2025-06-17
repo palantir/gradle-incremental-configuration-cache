@@ -1,0 +1,37 @@
+apply plugin: 'com.palantir.gradle-plugin-testing'
+apply plugin: 'java-gradle-plugin'
+apply plugin: 'groovy'
+apply plugin: 'com.palantir.external-publish-jar'
+
+
+dependencies {
+    annotationProcessor 'org.immutables:value'
+    compileOnly 'org.immutables:value::annotations'
+
+    testImplementation gradleTestKit()
+    testImplementation 'com.netflix.nebula:nebula-test'
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.vintage:junit-vintage-engine'
+}
+
+tasks.withType(Test) {
+    useJUnitPlatform()
+}
+
+gradlePlugin {
+    website = 'https://github.com/palantir/gradle-incremental-configuration-cache'
+    vcsUrl = 'https://github.com/palantir/gradle-incremental-configuration-cache'
+
+    plugins {
+        incrementalConfigurationCache {
+            id = 'com.palantir.incremental-configuration-cache'
+            implementationClass = 'com.palantir.gradle.configcache.incremental.IncrementalConfigurationCachePlugin'
+            displayName = 'Plugin to rollout Configuration Cache incrementally'
+            description = displayName
+        }
+    }
+}
+
+gradleTestUtils {
+    gradleVersions = ['7.6.5', '8.14.2']
+}
