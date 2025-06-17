@@ -31,7 +31,7 @@ public class AllowListFile {
         this.path = path;
 
         if (!Files.exists(path)) {
-            throw new GradleException("AllowlistFile does not exist at " + path);
+            throw new GradleException("AllowListFile does not exist at " + path);
         }
     }
 

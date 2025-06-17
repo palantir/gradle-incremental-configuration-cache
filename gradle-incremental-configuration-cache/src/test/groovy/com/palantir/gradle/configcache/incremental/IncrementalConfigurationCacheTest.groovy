@@ -15,6 +15,8 @@
  */
 package com.palantir.gradle.configcache.incremental
 import nebula.test.IntegrationTestKitSpec
+import java.nio.file.Files
+
 
 class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
     def setup() {
@@ -22,8 +24,7 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         keepFiles = true
     }
 
-    def "does nothing if allowlist file does not exist"() {
-        // Run the main build
+    def "blows up if allow list file does not exist"() {
         // language=gradle
         buildFile << """
             import com.palantir.gradle.configcache.incremental.IncrementalConfigurationCachePlugin
@@ -38,35 +39,61 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         """.stripIndent(true)
 
         expect:
-        assert runAndAssertNoConfigurationCache("classes")
+        def buildResult = createRunner(['classes', '--configuration-cache'] as String[]).buildAndFail()
+        assert buildResult.output.contains('Configuration cache allowed tasks file not found'),
+                "Expected task to blow up"
     }
 
-    def "tasks in allowlist run with config cache"() {
-        // Save the task graph of :classes to the allow list file
-        // language=gradle
-        buildFile << """
-        import com.palantir.gradle.configcache.incremental.IncrementalConfigurationCachePlugin
-        import java.nio.file.Files
+    def "blows up if applied to non root project"() {
+        def subprojectDir = new File(getProjectDir(), 'subproject')
+        subprojectDir.mkdirs()
+        new File(subprojectDir, 'build.gradle') << """
+            apply plugin: 'com.palantir.incremental-configuration-cache'
+            apply plugin: 'java-library'
+        """.stripIndent(true)
 
-        apply plugin: 'java-library'
-        
         def allowListFilePath = getProjectDir().toPath().resolve(IncrementalConfigurationCachePlugin.ALLOW_LIST_FILE)
         Files.createDirectories(allowListFilePath.getParent())
-        def allowListFile = file(allowListFilePath)
-        allowListFile.createNewFile()
-        println("File created at: " + allowListFilePath)
-
-        gradle.taskGraph.whenReady { graph ->
-            graph.getAllTasks().each { task ->
-                 allowListFile << task.path
-                 allowListFile << '\\n'
-            }
-        }
+        Files.createFile(allowListFilePath) << """
+        :compileJava
+        :processResources
+        :classes
         """
-        assert createRunner("classes").build().output.contains("BUILD SUCCESSFUL")
-        buildFile.text = ''
 
-        // Run the main build
+        // language=gradle
+        settingsFile << """
+        include 'subproject'
+        """
+
+        // language=gradle
+        buildFile << """
+            apply plugin: 'com.palantir.incremental-configuration-cache'
+            apply plugin: 'java-library'
+
+            repositories {
+                mavenCentral()
+                mavenLocal()
+            }
+
+            
+        """.stripIndent(true)
+
+        expect:
+        def buildResult = createRunner(['classes', '--configuration-cache'] as String[]).buildAndFail()
+        assert buildResult.output.contains('Must be applied only to root project'),
+                "Expected build to fail when plugin is applied to a non-root project"
+    }
+
+
+    def "tasks in allow list run with config cache"() {
+        def allowListFilePath = getProjectDir().toPath().resolve(IncrementalConfigurationCachePlugin.ALLOW_LIST_FILE)
+        Files.createDirectories(allowListFilePath.getParent())
+        Files.createFile(allowListFilePath) << """
+        :compileJava
+        :processResources
+        :classes
+        """
+
         // language=gradle
         buildFile << """
             import com.palantir.gradle.configcache.incremental.IncrementalConfigurationCachePlugin
@@ -84,30 +111,16 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         assert runTasksWithConfigurationCache("classes")
     }
 
-    def "tasks not in allowlist don't run with config cache"() {
-        // Create an allowlist that does not contain the :classes task
-        // language=gradle
-        buildFile << """
-        import com.palantir.gradle.configcache.incremental.IncrementalConfigurationCachePlugin
-        import java.nio.file.Files
-
-        apply plugin: 'java-library'
-        
+    def "tasks not in allow list don't run with config cache"() {
         def allowListFilePath = getProjectDir().toPath().resolve(IncrementalConfigurationCachePlugin.ALLOW_LIST_FILE)
         Files.createDirectories(allowListFilePath.getParent())
-        def allowListFile = file(allowListFilePath)
-        allowListFile.createNewFile()
-        println("File created at: " + allowListFilePath)
-        
-        allowListFile << ':processResources'
-        allowListFile << '\\n'
+        def allowListFile = Files.createFile(allowListFilePath)
+        // Doesn't contain :classes
+        allowListFile << """
+        :compileJava
+        :processResources
         """
-        def createAllowList = createRunner("help").build()
-        assert createAllowList.output.contains("BUILD SUCCESSFUL")
 
-        buildFile.text = ''
-
-        // Run the main build
         // language=gradle
         buildFile << """
             import com.palantir.gradle.configcache.incremental.IncrementalConfigurationCachePlugin
@@ -122,16 +135,10 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         """.stripIndent(true)
 
         expect:
-        assert runAndAssertNoConfigurationCache("classes")
+        assert !createRunner(['classes', '--configuration-cache'] as String[]).build().output.contains('Configuration cache entry stored.'),
+                "Expected task to not run with configuration cache, but it did"
     }
 
-    private boolean runAndAssertNoConfigurationCache(String... tasks) {
-        def run = createRunner(tasks + ['--configuration-cache'] as String[]).build()
-        assert run.output.contains("Calculating task graph as no cached configuration is available for tasks: classes"),
-                "Expected first run to store configuration cache, but output was: ${run.output}"
-
-        return true
-    }
 
     private boolean runTasksWithConfigurationCache(String... tasks) {
         def firstRun = createRunner(tasks + ['--configuration-cache'] as String[]).build()

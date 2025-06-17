@@ -19,6 +19,7 @@ package com.palantir.gradle.configcache.incremental;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
+import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.slf4j.Logger;
@@ -31,27 +32,26 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
 
     @Override
     public final void apply(Project project) {
-        Path allowlistPath = project.getRootProject().getProjectDir().toPath().resolve(ALLOW_LIST_FILE);
-        if (!Files.exists(allowlistPath)) {
-            log.warn(
-                    "Configuration cache allowed tasks file not found at: {}. "
-                            + "All tasks will be marked as incompatible with configuration cache.",
-                    allowlistPath.toAbsolutePath());
-            return;
+        if (!project.getRootProject().equals(project)) {
+            throw new GradleException("Must be applied only to root project");
         }
 
-        project.afterEvaluate(_proj -> {
-            AllowListFile allowList = new AllowListFile(allowlistPath);
-            Set<String> enabledTasks = allowList.loadAllowedTasks();
+        Path allowListPath = project.getRootProject().getProjectDir().toPath().resolve(ALLOW_LIST_FILE);
+        if (!Files.exists(allowListPath)) {
+            throw new GradleException(
+                    String.format("Configuration cache allowed tasks file not found at %s", allowListPath));
+        }
 
-            project.getTasks().configureEach(task -> {
-                if (!enabledTasks.contains(task.getPath())) {
-                    System.out.println("CC disabled for: " + task.getName());
-                    task.notCompatibleWithConfigurationCache(String.format(
-                            "Configuration cache is not enabled for this task, as it was not included in %s",
-                            ALLOW_LIST_FILE));
-                }
-            });
-        });
+        AllowListFile allowList = new AllowListFile(allowListPath);
+        Set<String> enabledTasks = allowList.loadAllowedTasks();
+
+        project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
+            if (!enabledTasks.contains(task.getPath())) {
+                System.out.println("CC disabled for: " + task.getName());
+                task.notCompatibleWithConfigurationCache(String.format(
+                        "Configuration cache is not enabled for this task, as it was not included in %s",
+                        ALLOW_LIST_FILE));
+            }
+        }));
     }
 }
