@@ -34,10 +34,9 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
         Path allowlistPath = project.getRootProject().getProjectDir().toPath().resolve(ALLOW_LIST_FILE);
         if (!Files.exists(allowlistPath)) {
             log.warn(
-                    "Configuration cache allowed tasks file not found at: {}. " +
-                            "All tasks will be marked as incompatible with configuration cache.",
-                    allowlistPath.toAbsolutePath()
-            );
+                    "Configuration cache allowed tasks file not found at: {}. "
+                            + "All tasks will be marked as incompatible with configuration cache.",
+                    allowlistPath.toAbsolutePath());
             return;
         }
 
@@ -48,10 +47,9 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
             project.getTasks().configureEach(task -> {
                 if (!enabledTasks.contains(task.getPath())) {
                     System.out.println("CC disabled for: " + task.getName());
-                    task.notCompatibleWithConfigurationCache(
-                            String.format(
-                                    "Configuration cache is not enabled for this task, as it was not included in %s",
-                                    ALLOW_LIST_FILE));
+                    task.notCompatibleWithConfigurationCache(String.format(
+                            "Configuration cache is not enabled for this task, as it was not included in %s",
+                            ALLOW_LIST_FILE));
                 }
             });
         });

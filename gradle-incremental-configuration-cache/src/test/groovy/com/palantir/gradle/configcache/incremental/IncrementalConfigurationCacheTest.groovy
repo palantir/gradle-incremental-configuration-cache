@@ -42,7 +42,7 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
     }
 
     def "tasks in allowlist run with config cache"() {
-        // Save the task graph of `build` to the allow list file
+        // Save the task graph of :classes to the allow list file
         // language=gradle
         buildFile << """
         import com.palantir.gradle.configcache.incremental.IncrementalConfigurationCachePlugin
