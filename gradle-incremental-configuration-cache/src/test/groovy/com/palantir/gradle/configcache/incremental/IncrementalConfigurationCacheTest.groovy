@@ -141,11 +141,7 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         def allowListFilePath = getProjectDir().toPath().resolve(IncrementalConfigurationCachePlugin.ALLOW_LIST_FILE)
         Files.createDirectories(allowListFilePath.getParent())
         def allowListFile = Files.createFile(allowListFilePath)
-        // Doesn't contain :classes
-        allowListFile << """
-        :compileJava
-        :processResources
-        """
+        allowListFile << ""
 
         // language=gradle
         buildFile << """
