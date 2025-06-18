@@ -23,6 +23,7 @@ import java.util.Set;
 import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.internal.impldep.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +34,14 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
     private static final String ALLOW_LIST_INFO = "What is the configuration cache allow list?: "
             + "https://github.com/palantir/gradle-incremental-configuration-cache/blob/develop/README.md#motivation";
 
+    @VisibleForTesting
+    private static final String REASSURE_USERS_ABOUT_CONFIG_CACHE =
+            """
+            [IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out incrementally.
+            You may see Configuration Cache problems/warnings for some tasks during this process.
+            These issues will be addressed as support for the configuration cache is improved in tasks.
+            """;
+
     @Override
     public final void apply(Project project) {
         if (!project.getRootProject().equals(project)) {
@@ -41,9 +50,8 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
 
         Path allowListPath = project.getRootProject().getProjectDir().toPath().resolve(ALLOW_LIST_FILE);
         if (!Files.exists(allowListPath)) {
-            throw new GradleException(
-                    String.format("Configuration cache allow list not found at %s\n%s", allowListPath, ALLOW_LIST_INFO)
-            );
+            throw new GradleException(String.format(
+                    "Configuration cache allow list not found at %s\n%s", allowListPath, ALLOW_LIST_INFO));
         }
 
         AllowListFile allowList = new AllowListFile(allowListPath);
@@ -58,15 +66,9 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
             }));
         } catch (IOException e) {
             throw new GradleException(
-                    String.format("Error reading the allow list at %s\n%s", allowListPath, ALLOW_LIST_INFO)
-            );
+                    String.format("Error reading the allow list at %s\n%s", allowListPath, ALLOW_LIST_INFO));
         }
 
-        log.warn("""
-                [IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out incrementally.
-                You may see Configuration Cache problems/warnings for some tasks during this process.
-                These issues will be addressed as support for the configuration cache is improved in tasks.
-                """
-        );
+        log.warn(REASSURE_USERS_ABOUT_CONFIG_CACHE);
     }
 }

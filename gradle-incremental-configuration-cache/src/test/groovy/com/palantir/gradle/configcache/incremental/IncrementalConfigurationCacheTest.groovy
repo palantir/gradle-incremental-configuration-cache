@@ -137,7 +137,7 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
                 "Expected task to not run with configuration cache, but it did"
     }
 
-    def "users are reassured if there are configuration cache problems"() {
+    def "users are reassured about configuration cache problems"() {
         def allowListFilePath = getProjectDir().toPath().resolve(IncrementalConfigurationCachePlugin.ALLOW_LIST_FILE)
         Files.createDirectories(allowListFilePath.getParent())
         def allowListFile = Files.createFile(allowListFilePath)
@@ -164,9 +164,8 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
 
         expect:
         def buildResult = createRunner(['breaksConfigurationCache', '--configuration-cache'] as String[]).build()
-        print(buildResult.output)
-        assert buildResult.output.contains('Configuration cache entry stored.'),
-                "Expected task to not run with configuration cache, but it did"
+        assert buildResult.output.contains(IncrementalConfigurationCachePlugin.REASSURE_USERS_ABOUT_CONFIG_CACHE),
+                "Expected task to reassure users"
     }
 
 
