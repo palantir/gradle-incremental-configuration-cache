@@ -16,6 +16,7 @@
 
 package com.palantir.gradle.configcache.incremental;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
@@ -29,6 +30,8 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
     private static final Logger log = LoggerFactory.getLogger(IncrementalConfigurationCachePlugin.class);
 
     public static final Path ALLOW_LIST_FILE = Path.of("gradle/configuration-cache-allowed-tasks");
+    private static final String ALLOW_LIST_INFO = "What is the configuration cache allow list?: "
+            + "https://github.com/palantir/gradle-incremental-configuration-cache/blob/develop/README.md#motivation";
 
     @Override
     public final void apply(Project project) {
@@ -39,18 +42,31 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
         Path allowListPath = project.getRootProject().getProjectDir().toPath().resolve(ALLOW_LIST_FILE);
         if (!Files.exists(allowListPath)) {
             throw new GradleException(
-                    String.format("Configuration cache allowed tasks file not found at %s", allowListPath));
+                    String.format("Configuration cache allow list not found at %s\n%s", allowListPath, ALLOW_LIST_INFO)
+            );
         }
 
         AllowListFile allowList = new AllowListFile(allowListPath);
-        Set<String> enabledTasks = allowList.loadAllowedTasks();
+        try {
+            Set<String> enabledTasks = allowList.loadAllowedTasks();
+            project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
+                if (!enabledTasks.contains(task.getPath())) {
+                    task.notCompatibleWithConfigurationCache(String.format(
+                            "Configuration cache is not enabled for this task, as it was not included in %s",
+                            ALLOW_LIST_FILE));
+                }
+            }));
+        } catch (IOException e) {
+            throw new GradleException(
+                    String.format("Error reading the allow list at %s\n%s", allowListPath, ALLOW_LIST_INFO)
+            );
+        }
 
-        project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
-            if (!enabledTasks.contains(task.getPath())) {
-                task.notCompatibleWithConfigurationCache(String.format(
-                        "Configuration cache is not enabled for this task, as it was not included in %s",
-                        ALLOW_LIST_FILE));
-            }
-        }));
+        log.warn("""
+                [IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out incrementally.
+                You may see Configuration Cache problems/warnings for some tasks during this process.
+                These issues will be addressed as support for the configuration cache is improved in tasks.
+                """
+        );
     }
 }

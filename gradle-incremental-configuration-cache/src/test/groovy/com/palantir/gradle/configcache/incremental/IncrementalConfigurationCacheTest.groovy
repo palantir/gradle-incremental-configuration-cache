@@ -137,6 +137,38 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
                 "Expected task to not run with configuration cache, but it did"
     }
 
+    def "users are reassured if there are configuration cache problems"() {
+        def allowListFilePath = getProjectDir().toPath().resolve(IncrementalConfigurationCachePlugin.ALLOW_LIST_FILE)
+        Files.createDirectories(allowListFilePath.getParent())
+        def allowListFile = Files.createFile(allowListFilePath)
+        // Doesn't contain :classes
+        allowListFile << """
+        :compileJava
+        :processResources
+        """
+
+        // language=gradle
+        buildFile << """
+            tasks.register('breaksConfigurationCache') {
+                doLast {
+                    println "This project's name is: " + getProject().name
+                }
+            }
+
+            apply plugin: 'com.palantir.incremental-configuration-cache'
+
+            repositories {
+                mavenLocal()
+            }
+        """.stripIndent(true)
+
+        expect:
+        def buildResult = createRunner(['breaksConfigurationCache', '--configuration-cache'] as String[]).build()
+        print(buildResult.output)
+        assert buildResult.output.contains('Configuration cache entry stored.'),
+                "Expected task to not run with configuration cache, but it did"
+    }
+
 
     private boolean runTasksWithConfigurationCache(String... tasks) {
         def firstRun = createRunner(tasks + ['--configuration-cache'] as String[]).build()
