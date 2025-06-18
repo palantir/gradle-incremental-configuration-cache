@@ -37,10 +37,10 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
     @VisibleForTesting
     private static final String REASSURE_USERS_ABOUT_CONFIG_CACHE =
             """
-            [IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out incrementally.
-            You may see Configuration Cache problems/warnings for some tasks during this process.
-            These issues will be addressed as support for the configuration cache is improved in tasks.
-            """;
+                    [IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out incrementally.
+                    You may see Configuration Cache problems/warnings for some tasks during this process.
+                    These issues will be addressed as support for the configuration cache is improved in tasks.
+                    """;
 
     @Override
     public final void apply(Project project) {
@@ -69,6 +69,6 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
                     String.format("Error reading the allow list at %s\n%s", allowListPath, ALLOW_LIST_INFO));
         }
 
-        log.warn(REASSURE_USERS_ABOUT_CONFIG_CACHE);
+        log.warn(REASSURE_USERS_ABOUT_CONFIG_CACHE);  // so users aren't freaked out by the warnings
     }
 }
