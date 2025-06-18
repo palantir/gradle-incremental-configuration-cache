@@ -40,7 +40,7 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
 
         expect:
         def buildResult = createRunner(['classes', '--configuration-cache'] as String[]).buildAndFail()
-        assert buildResult.output.contains('Configuration cache allowed tasks file not found'),
+        assert buildResult.output.contains('Configuration cache allow list not found'),
                 "Expected task to blow up"
     }
 

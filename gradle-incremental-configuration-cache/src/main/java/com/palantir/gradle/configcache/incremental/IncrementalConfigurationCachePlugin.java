@@ -16,6 +16,7 @@
 
 package com.palantir.gradle.configcache.incremental;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,7 +24,6 @@ import java.util.Set;
 import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.internal.impldep.com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,10 +37,10 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
     @VisibleForTesting
     private static final String REASSURE_USERS_ABOUT_CONFIG_CACHE =
             """
-                    [IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out incrementally.
-                    You may see Configuration Cache problems/warnings for some tasks during this process.
-                    These issues will be addressed as support for the configuration cache is improved in tasks.
-                    """;
+            [IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out incrementally.
+            You may see Configuration Cache problems/warnings for some tasks during this process.
+            These issues will be addressed as support for the configuration cache is improved in tasks.
+            """;
 
     @Override
     public final void apply(Project project) {
@@ -69,6 +69,6 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
                     String.format("Error reading the allow list at %s\n%s", allowListPath, ALLOW_LIST_INFO));
         }
 
-        log.warn(REASSURE_USERS_ABOUT_CONFIG_CACHE);  // so users aren't freaked out by the warnings
+        log.warn(REASSURE_USERS_ABOUT_CONFIG_CACHE); // so users aren't freaked out by the warnings
     }
 }
