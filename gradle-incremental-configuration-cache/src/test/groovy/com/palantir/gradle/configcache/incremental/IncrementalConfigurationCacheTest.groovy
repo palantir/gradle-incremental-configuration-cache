@@ -74,8 +74,6 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
                 mavenCentral()
                 mavenLocal()
             }
-
-            
         """.stripIndent(true)
 
         expect:
