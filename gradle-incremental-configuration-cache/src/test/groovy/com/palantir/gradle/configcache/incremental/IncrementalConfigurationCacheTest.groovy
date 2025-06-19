@@ -15,6 +15,7 @@
  */
 package com.palantir.gradle.configcache.incremental
 import nebula.test.IntegrationTestKitSpec
+import spock.lang.Unroll
 
 
 class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
@@ -26,14 +27,14 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         buildFile << '''
             apply plugin: 'com.palantir.incremental-configuration-cache'
             apply plugin: 'java-library'
-            
+
             tasks.register('breaksConfigurationCache') {
                 doLast {
                     println "This project's name is: " + getProject().name
                 }
             }
-            
-            tasks.register('breaksConfigurationCache') {
+
+            tasks.register('supportsConfigurationCache') {
                 doLast {
                     println "I am a happy squirrel"
                 }
@@ -47,11 +48,15 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         def output = buildResult.output
 
         then:
-        output.contains('Configuration cache allowed tasks file not found')
+        output.contains('Configuration cache allow list file not found')
     }
 
     def "blows up if applied to non root project"() {
-        file('subproject/build.gradle') << '''
+        settingsFile << '''
+            include 'subproject'
+        '''.stripIndent(true)
+
+        file("subproject/build.gradle") << '''
             apply plugin: 'com.palantir.incremental-configuration-cache'
             apply plugin: 'java-library'
         '''.stripIndent(true)
@@ -60,11 +65,6 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
             :compileJava
             :processResources
             :classes
-        '''.stripIndent(true)
-
-        // language=gradle
-        settingsFile << '''
-            include 'subproject'
         '''.stripIndent(true)
 
         when:
@@ -76,7 +76,7 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
     }
 
 
-    def "tasks in allow list run with config cache"() {
+    def "tasks in allow list run with configuration cache"() {
         file("gradle/configuration-cache-allowed-tasks") << '''
             :compileJava
             :processResources
@@ -101,41 +101,25 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         !output.contains('Configuration cache entry stored.')
     }
 
-    def "if there are configuration cache problems, users are reassured"() {
+    @Unroll
+    def "reassure users iff there are configuration cache problems"() {
         file("gradle/configuration-cache-allowed-tasks") << ""
 
-        // language=gradle
-        buildFile << """
-
-
-            apply plugin: 'com.palantir.incremental-configuration-cache'
-        """.stripIndent(true)
-
         when:
-        def buildResult = createRunner(['breaksConfigurationCache', '--configuration-cache'] as String[]).build()
+        def buildResult = createRunner([task, '--configuration-cache'] as String[]).build()
 
         then:
-        buildResult.output.contains("[IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out incrementally")
+        buildResult.output.contains(
+                "[IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out"
+        ) == shouldReassure
+
+        where:
+        task                         | shouldReassure
+        "breaksConfigurationCache"   | true
+        "supportsConfigurationCache" | false
     }
 
-    def "if there are no configuration cache problems, users aren't reassured"() {
-        file("gradle/configuration-cache-allowed-tasks") << ''
-
-        // language=gradle
-        buildFile << '''
-
-
-            apply plugin: 'com.palantir.incremental-configuration-cache'
-        '''.stripIndent(true)
-
-        when:
-        def buildResult = createRunner(['breaksConfigurationCache', '--configuration-cache'] as String[]).build()
-
-        then:
-        !buildResult.output.contains("[IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out incrementally")
-    }
-
-    private boolean runTasksWithConfigurationCache(String... tasks) {
+    private void runTasksWithConfigurationCache(String... tasks) {
         def firstRun = createRunner(tasks + ['--configuration-cache'] as String[]).build()
         def firstOutput = firstRun.output
         assert firstOutput.contains('Configuration cache entry stored.'),
@@ -145,7 +129,5 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         def secondOutput = secondRun.output
         assert secondOutput.contains('Configuration cache entry reused.'),
                 "Expected second run to reuse configuration cache, but output was: ${secondRun.output}"
-
-        return true
     }
 }

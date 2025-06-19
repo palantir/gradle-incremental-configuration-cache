@@ -39,9 +39,9 @@ public abstract class ReassureUsers implements FlowAction<ReassureUsers.Params> 
         if (hasConfigurationCacheProblems(params.getProblems().get())) {
             log.warn(
                     """
-                            [IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out incrementally.
+                            [IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out.
                             You may see Configuration Cache problems/warnings for some tasks during this process.
-                            These issues will be addressed as support for the configuration cache is improved in tasks.""");
+                            These issues will be addressed as support for the configuration cache is improved.""");
         }
     }
 

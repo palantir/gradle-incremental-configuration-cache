@@ -48,8 +48,8 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
         Path allowListPath = project.getRootProject().getProjectDir().toPath().resolve(ALLOW_LIST_FILE);
         if (!Files.exists(allowListPath)) {
-            throw new RuntimeException(
-                    "Configuration cache file not found at %s\n%s".formatted(allowListPath, ALLOW_LIST_INFO));
+            throw new RuntimeException("Configuration cache allow list file not found at %s\n%s"
+                    .formatted(allowListPath, ALLOW_LIST_INFO));
         }
 
         AllowListFile allowList = new AllowListFile(allowListPath);
