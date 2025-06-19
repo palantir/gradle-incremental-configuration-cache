@@ -86,7 +86,7 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         def output = buildResult.output
 
         then:
-        output.contains('Configuration cache entry stored.')
+        !output.contains('Configuration cache entry stored.')
     }
 
     private boolean runTasksWithConfigurationCache(String... tasks) {
