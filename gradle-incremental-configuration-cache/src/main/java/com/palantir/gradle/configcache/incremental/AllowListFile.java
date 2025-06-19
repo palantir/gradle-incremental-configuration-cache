@@ -34,10 +34,14 @@ public final class AllowListFile {
         }
     }
 
-    public Set<String> loadAllowedTasks() throws IOException {
-        return Files.readAllLines(path).stream()
-                .map(String::trim)
-                .filter(line -> !line.isEmpty() && !line.startsWith("#"))
-                .collect(Collectors.toSet());
+    public Set<String> loadAllowedTasks() {
+        try {
+            return Files.readAllLines(path).stream()
+                    .map(String::trim)
+                    .filter(line -> !line.isEmpty() && !line.startsWith("#"))
+                    .collect(Collectors.toSet());
+        } catch (IOException e) {
+            throw new GradleException("Failed to read configuration cache allowed tasks file: " + path, e);
+        }
     }
 }

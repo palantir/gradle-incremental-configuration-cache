@@ -16,7 +16,6 @@
 
 package com.palantir.gradle.configcache.incremental;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
@@ -67,19 +66,14 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         }
 
         AllowListFile allowList = new AllowListFile(allowListPath);
-        try {
-            Set<String> enabledTasks = allowList.loadAllowedTasks();
-            project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
-                if (!enabledTasks.contains(task.getPath())) {
-                    task.notCompatibleWithConfigurationCache(String.format(
-                            "Configuration cache is not enabled for this task, as it was not included in %s",
-                            ALLOW_LIST_FILE));
-                }
-            }));
-        } catch (IOException e) {
-            throw new GradleException(
-                    String.format("Error reading the allow list at %s\n%s", allowListPath, ALLOW_LIST_INFO));
-        }
+        Set<String> enabledTasks = allowList.loadAllowedTasks();
+        project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
+            if (!enabledTasks.contains(task.getPath())) {
+                task.notCompatibleWithConfigurationCache(String.format(
+                        "Configuration cache is not enabled for this task, as it was not included in %s",
+                        ALLOW_LIST_FILE));
+            }
+        }));
 
         getFlowScope().always(ReassureUsers.class, spec -> spec.getParameters()
                 .getProblems()
