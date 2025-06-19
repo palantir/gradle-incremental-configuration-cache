@@ -23,7 +23,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.gradle.api.GradleException;
 
-
 public final class AllowListFile {
     private Path path;
 
