@@ -26,14 +26,8 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
     def "blows up if allow list file does not exist"() {
         // language=gradle
         buildFile << '''
-
             apply plugin: 'com.palantir.incremental-configuration-cache'
             apply plugin: 'java-library'
-
-            repositories {
-                mavenCentral()
-                mavenLocal()
-            }
         '''.stripIndent(true)
 
         when:
@@ -66,11 +60,6 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         buildFile << '''
             apply plugin: 'com.palantir.incremental-configuration-cache'
             apply plugin: 'java-library'
-
-            repositories {
-                mavenCentral()
-                mavenLocal()
-            }
         '''.stripIndent(true)
 
         when:
@@ -93,11 +82,6 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         buildFile << '''
             apply plugin: 'com.palantir.incremental-configuration-cache'
             apply plugin: 'java-library'
-
-            repositories {
-                mavenCentral()
-                mavenLocal()
-            }
         '''.stripIndent(true)
 
         expect:
@@ -115,11 +99,6 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         buildFile << '''
             apply plugin: 'com.palantir.incremental-configuration-cache'
             apply plugin: 'java-library'
-
-            repositories {
-                mavenCentral()
-                mavenLocal()
-            }
         '''.stripIndent(true)
 
         when:
