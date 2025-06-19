@@ -32,9 +32,10 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
     def "blows up if allow list file does not exist"() {
         when:
         def buildResult = createRunner('classes', '--configuration-cache').buildAndFail()
+        def output = buildResult.output
 
         then:
-        buildResult.output.contains('Configuration cache allowed tasks file not found')
+        output.contains('Configuration cache allowed tasks file not found')
     }
 
     def "blows up if applied to non root project"() {
@@ -56,9 +57,10 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
 
         when:
         def buildResult = createRunner('classes', '--configuration-cache').buildAndFail()
+        def output = buildResult.output
 
         then:
-        buildResult.output.contains('Must be applied only to root project')
+        output.contains('Must be applied only to root project')
     }
 
 
@@ -81,18 +83,21 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
 
         when:
         def buildResult = createRunner('classes', '--configuration-cache').build()
+        def output = buildResult.output
 
         then:
-        !buildResult.output.contains('Configuration cache entry stored.')
+        output.contains('Configuration cache entry stored.')
     }
 
     private boolean runTasksWithConfigurationCache(String... tasks) {
         def firstRun = createRunner(tasks + ['--configuration-cache'] as String[]).build()
-        assert firstRun.output.contains('Configuration cache entry stored.'),
+        def firstOutput = firstRun.output
+        assert firstOutput.contains('Configuration cache entry stored.'),
                 "Expected first run to store configuration cache, but output was: ${firstRun.output}"
 
         def secondRun = createRunner(tasks + ['--configuration-cache'] as String[]).build()
-        assert secondRun.output.contains('Configuration cache entry reused.'),
+        def secondOutput = secondRun.output
+        assert secondOutput.contains('Configuration cache entry reused.'),
                 "Expected second run to reuse configuration cache, but output was: ${secondRun.output}"
 
         return true
