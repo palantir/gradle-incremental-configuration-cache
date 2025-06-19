@@ -23,9 +23,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.gradle.api.GradleException;
 
-
-// TODO: maybe add the file version in the first line, for future proofing
-public class AllowListFile {
+public final class AllowListFile {
     private Path path;
 
     public AllowListFile(Path path) {
