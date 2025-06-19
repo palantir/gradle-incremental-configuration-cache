@@ -20,14 +20,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
 import javax.inject.Inject;
-import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.flow.FlowScope;
 import org.gradle.api.provider.ProviderFactory;
 import org.gradle.internal.cc.impl.problems.ConfigurationCacheProblems;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class IncrementalConfigurationCachePlugin implements Plugin<Project> {
     @Inject
@@ -38,8 +35,6 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
     @Inject
     protected abstract ProviderFactory getProviderFactory();
-
-    private static final Logger log = LoggerFactory.getLogger(IncrementalConfigurationCachePlugin.class);
 
     public static final Path ALLOW_LIST_FILE = Path.of("gradle/configuration-cache-allowed-tasks");
     private static final String ALLOW_LIST_INFO = "What is the configuration cache allow list?: "
@@ -54,7 +49,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         Path allowListPath = project.getRootProject().getProjectDir().toPath().resolve(ALLOW_LIST_FILE);
         if (!Files.exists(allowListPath)) {
             throw new RuntimeException(
-                    "Configuration cache file not found at %s".formatted(allowListPath));
+                    "Configuration cache file not found at %s\n%s".formatted(allowListPath, ALLOW_LIST_INFO));
         }
 
         AllowListFile allowList = new AllowListFile(allowListPath);
@@ -63,7 +58,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
             if (!enabledTasks.contains(task.getPath())) {
                 task.notCompatibleWithConfigurationCache(String.format(
                         "Configuration cache is not enabled for this task, as it was not included in %s",
-                        ALLOW_LIST_FILE));
+                        allowListPath));
             }
         }));
 
