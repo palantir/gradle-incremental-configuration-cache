@@ -48,13 +48,13 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
     @Override
     public final void apply(Project project) {
         if (!project.getRootProject().equals(project)) {
-            throw new GradleException("Must be applied only to root project");
+            throw new RuntimeException("Must be applied only to root project");
         }
 
         Path allowListPath = project.getRootProject().getProjectDir().toPath().resolve(ALLOW_LIST_FILE);
         if (!Files.exists(allowListPath)) {
-            throw new GradleException(String.format(
-                    "Configuration cache allow list not found at %s\n%s", allowListPath, ALLOW_LIST_INFO));
+            throw new RuntimeException(
+                    "Configuration cache file not found at %s".formatted(allowListPath));
         }
 
         AllowListFile allowList = new AllowListFile(allowListPath);
