@@ -38,8 +38,10 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
             }
         """.stripIndent(true)
 
-        expect:
+        when:
         def buildResult = createRunner(['classes', '--configuration-cache'] as String[]).buildAndFail()
+
+        then:
         assert buildResult.output.contains('Configuration cache allow list not found'),
                 "Expected task to blow up"
     }
@@ -137,7 +139,7 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
                 "Expected task to not run with configuration cache, but it did"
     }
 
-    def "users are reassured about configuration cache problems"() {
+    def "if there are configuration cache problems, users are reassured"() {
         def allowListFilePath = getProjectDir().toPath().resolve(IncrementalConfigurationCachePlugin.ALLOW_LIST_FILE)
         Files.createDirectories(allowListFilePath.getParent())
         def allowListFile = Files.createFile(allowListFilePath)
@@ -158,10 +160,41 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
             }
         """.stripIndent(true)
 
-        expect:
+        when:
         def buildResult = createRunner(['breaksConfigurationCache', '--configuration-cache'] as String[]).build()
-        assert buildResult.output.contains(IncrementalConfigurationCachePlugin.REASSURE_USERS_ABOUT_CONFIG_CACHE),
-                "Expected task to reassure users"
+
+        then:
+        buildResult.output.contains("BUILD SUCCESSFUL")
+        buildResult.output.contains("[IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out incrementally")
+    }
+
+    def "if there are no configuration cache problems, users aren't reassured"() {
+        def allowListFilePath = getProjectDir().toPath().resolve(IncrementalConfigurationCachePlugin.ALLOW_LIST_FILE)
+        Files.createDirectories(allowListFilePath.getParent())
+        def allowListFile = Files.createFile(allowListFilePath)
+        allowListFile << ""
+
+        // language=gradle
+        buildFile << """
+            tasks.register('breaksConfigurationCache') {
+                doLast {
+                    println "I am a happy squirrel"
+                }
+            }
+
+            apply plugin: 'com.palantir.incremental-configuration-cache'
+
+            repositories {
+                mavenLocal()
+            }
+        """.stripIndent(true)
+
+        when:
+        def buildResult = createRunner(['breaksConfigurationCache', '--configuration-cache'] as String[]).build()
+
+        then:
+        buildResult.output.contains("BUILD SUCCESSFUL")
+        !buildResult.output.contains("[IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out incrementally")
     }
 
 

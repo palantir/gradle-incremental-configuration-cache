@@ -16,31 +16,43 @@
 
 package com.palantir.gradle.configcache.incremental;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
+import javax.inject.Inject;
 import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.flow.FlowProviders;
+import org.gradle.api.flow.FlowScope;
+import org.gradle.api.provider.ProviderFactory;
+import org.gradle.internal.cc.impl.initialization.ConfigurationCacheStartParameter;
+import org.gradle.internal.cc.impl.problems.ConfigurationCacheProblems;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
+public abstract class IncrementalConfigurationCachePlugin implements Plugin<Project> {
+    @Inject
+    protected abstract FlowScope getFlowScope();
+
+    @Inject
+    protected abstract FlowProviders getFlowProviders();
+
+    @Inject
+    protected abstract ConfigurationCacheProblems getConfigurationCacheProblems();
+
+    @Inject
+    protected abstract ConfigurationCacheStartParameter getConfigurationCacheStartParameter();
+
+    @Inject
+    protected abstract ProviderFactory getProviderFactory();
+
     private static final Logger log = LoggerFactory.getLogger(IncrementalConfigurationCachePlugin.class);
 
     public static final Path ALLOW_LIST_FILE = Path.of("gradle/configuration-cache-allowed-tasks");
     private static final String ALLOW_LIST_INFO = "What is the configuration cache allow list?: "
             + "https://github.com/palantir/gradle-incremental-configuration-cache/blob/develop/README.md#motivation";
-
-    @VisibleForTesting
-    private static final String REASSURE_USERS_ABOUT_CONFIG_CACHE =
-            """
-            [IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out incrementally.
-            You may see Configuration Cache problems/warnings for some tasks during this process.
-            These issues will be addressed as support for the configuration cache is improved in tasks.
-            """;
 
     @Override
     public final void apply(Project project) {
@@ -69,6 +81,8 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
                     String.format("Error reading the allow list at %s\n%s", allowListPath, ALLOW_LIST_INFO));
         }
 
-        log.warn(REASSURE_USERS_ABOUT_CONFIG_CACHE); // so users aren't freaked out by the warnings
+        getFlowScope().always(ReassureUsers.class, spec -> spec.getParameters()
+                .getProblems()
+                .set(getProviderFactory().provider(() -> getConfigurationCacheProblems())));
     }
 }
