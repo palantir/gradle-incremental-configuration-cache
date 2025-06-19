@@ -1,0 +1,6 @@
+type: improvement
+improvement:
+  description: Blow up if applied to non-root project, or if allow list file is not
+    found
+  links:
+  - https://github.com/palantir/gradle-incremental-configuration-cache/pull/1
