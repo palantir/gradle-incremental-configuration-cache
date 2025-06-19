@@ -21,7 +21,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.gradle.api.GradleException;
 
 public final class AllowListFile {
     private final Path path;
@@ -30,7 +29,7 @@ public final class AllowListFile {
         this.path = path;
 
         if (!Files.exists(path)) {
-            throw new GradleException("AllowListFile does not exist at " + path);
+            throw new RuntimeException("AllowListFile does not exist at " + path);
         }
     }
 
@@ -41,7 +40,7 @@ public final class AllowListFile {
                     .filter(line -> !line.isEmpty() && !line.startsWith("#"))
                     .collect(Collectors.toSet());
         } catch (IOException e) {
-            throw new GradleException("Failed to read configuration cache allowed tasks file: " + path, e);
+            throw new RuntimeException("Failed to read configuration cache allowed tasks file: " + path, e);
         }
     }
 }

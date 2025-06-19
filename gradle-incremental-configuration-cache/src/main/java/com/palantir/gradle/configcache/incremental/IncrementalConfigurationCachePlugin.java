@@ -19,7 +19,6 @@ package com.palantir.gradle.configcache.incremental;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
-import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.slf4j.Logger;
@@ -33,12 +32,12 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
     @Override
     public final void apply(Project project) {
         if (!project.getRootProject().equals(project)) {
-            throw new GradleException("Must be applied only to root project");
+            throw new RuntimeException("Must be applied only to root project");
         }
 
         Path allowListPath = project.getRootProject().getProjectDir().toPath().resolve(ALLOW_LIST_FILE);
         if (!Files.exists(allowListPath)) {
-            throw new GradleException(
+            throw new RuntimeException(
                     String.format("Configuration cache allowed tasks file not found at %s", allowListPath));
         }
 
