@@ -21,15 +21,15 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
     def setup() {
         definePluginOutsideOfPluginBlock = true
         keepFiles = true
-    }
 
-    def "blows up if allow list file does not exist"() {
         // language=gradle
         buildFile << '''
             apply plugin: 'com.palantir.incremental-configuration-cache'
             apply plugin: 'java-library'
         '''.stripIndent(true)
+    }
 
+    def "blows up if allow list file does not exist"() {
         when:
         def buildResult = createRunner('classes', '--configuration-cache').buildAndFail()
 
@@ -38,13 +38,11 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
     }
 
     def "blows up if applied to non root project"() {
-        def subprojectDir = directory('subproject')
-        file('build.gradle', subprojectDir) << '''
+        file('subproject/build.gradle') << '''
             apply plugin: 'com.palantir.incremental-configuration-cache'
             apply plugin: 'java-library'
         '''.stripIndent(true)
 
-        directory("gradle")
         file("gradle/configuration-cache-allowed-tasks") << '''
             :compileJava
             :processResources
@@ -56,12 +54,6 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
             include 'subproject'
         '''.stripIndent(true)
 
-        // language=gradle
-        buildFile << '''
-            apply plugin: 'com.palantir.incremental-configuration-cache'
-            apply plugin: 'java-library'
-        '''.stripIndent(true)
-
         when:
         def buildResult = createRunner('classes', '--configuration-cache').buildAndFail()
 
@@ -71,17 +63,10 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
 
 
     def "tasks in allow list run with config cache"() {
-        directory("gradle")
         file("gradle/configuration-cache-allowed-tasks") << '''
             :compileJava
             :processResources
             :classes
-        '''.stripIndent(true)
-
-        // language=gradle
-        buildFile << '''
-            apply plugin: 'com.palantir.incremental-configuration-cache'
-            apply plugin: 'java-library'
         '''.stripIndent(true)
 
         expect:
@@ -89,16 +74,9 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
     }
 
     def "tasks not in allow list don't run with config cache"() {
-        directory("gradle")
         file("gradle/configuration-cache-allowed-tasks") << '''
             :compileJava
             :processResources
-        '''.stripIndent(true)
-
-        // language=gradle
-        buildFile << '''
-            apply plugin: 'com.palantir.incremental-configuration-cache'
-            apply plugin: 'java-library'
         '''.stripIndent(true)
 
         when:
@@ -107,7 +85,6 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         then:
         !buildResult.output.contains('Configuration cache entry stored.')
     }
-
 
     private boolean runTasksWithConfigurationCache(String... tasks) {
         def firstRun = createRunner(tasks + ['--configuration-cache'] as String[]).build()
