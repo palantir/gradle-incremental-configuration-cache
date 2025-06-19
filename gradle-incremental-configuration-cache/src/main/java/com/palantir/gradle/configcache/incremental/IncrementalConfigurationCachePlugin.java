@@ -23,10 +23,8 @@ import javax.inject.Inject;
 import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.api.flow.FlowProviders;
 import org.gradle.api.flow.FlowScope;
 import org.gradle.api.provider.ProviderFactory;
-import org.gradle.internal.cc.impl.initialization.ConfigurationCacheStartParameter;
 import org.gradle.internal.cc.impl.problems.ConfigurationCacheProblems;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,13 +34,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
     protected abstract FlowScope getFlowScope();
 
     @Inject
-    protected abstract FlowProviders getFlowProviders();
-
-    @Inject
     protected abstract ConfigurationCacheProblems getConfigurationCacheProblems();
-
-    @Inject
-    protected abstract ConfigurationCacheStartParameter getConfigurationCacheStartParameter();
 
     @Inject
     protected abstract ProviderFactory getProviderFactory();
