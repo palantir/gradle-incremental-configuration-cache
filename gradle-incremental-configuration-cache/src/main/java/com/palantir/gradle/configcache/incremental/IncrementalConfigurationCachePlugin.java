@@ -56,9 +56,9 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         Set<String> enabledTasks = allowList.loadAllowedTasks();
         project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
             if (!enabledTasks.contains(task.getPath())) {
-                task.notCompatibleWithConfigurationCache(String.format(
-                        "Configuration cache is not enabled for this task, as it was not included in %s",
-                        allowListPath));
+                task.notCompatibleWithConfigurationCache(
+                        "Configuration cache is not enabled for this task, as it was not included in %s\n%s"
+                                .formatted(allowListPath, ALLOW_LIST_INFO));
             }
         }));
 
