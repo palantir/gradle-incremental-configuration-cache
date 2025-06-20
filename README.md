@@ -25,6 +25,10 @@ This plugin enables incrementally rolling out the Configuration Cache, one task 
 This plugin also prevents regressions — people adding Configuration Cache issues to tasks that already support them.
 
 
+## Limitations
+
+The plugin only disables Configuration Cache for tasks. If your configuration phase is not compatible with the cache, you must resolve those issues first.
+
 ## Configuration
 
 The only external dependency is the plain text file `gradle/configuration-cache-allowed-tasks` at the root of your project.  
