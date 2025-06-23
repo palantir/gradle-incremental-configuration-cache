@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Explicate that plugin only works for tasks in README
+  links:
+  - https://github.com/palantir/gradle-incremental-configuration-cache/pull/6
