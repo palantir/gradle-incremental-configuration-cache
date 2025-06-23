@@ -29,7 +29,6 @@ import org.gradle.api.provider.ProviderFactory;
 import org.gradle.internal.cc.impl.problems.ConfigurationCacheProblems;
 // CHECKSTYLE:ON
 
-
 public abstract class IncrementalConfigurationCachePlugin implements Plugin<Project> {
     @Inject
     protected abstract FlowScope getFlowScope();
