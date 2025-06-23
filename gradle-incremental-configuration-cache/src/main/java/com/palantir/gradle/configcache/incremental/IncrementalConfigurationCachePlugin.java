@@ -24,12 +24,16 @@ import java.util.Set;
 import javax.inject.Inject;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.flow.FlowProviders;
 import org.gradle.api.flow.FlowScope;
 import org.gradle.api.provider.ProviderFactory;
 import org.gradle.internal.cc.impl.problems.ConfigurationCacheProblems;
 // CHECKSTYLE:ON
 
 public abstract class IncrementalConfigurationCachePlugin implements Plugin<Project> {
+    @Inject
+    protected abstract FlowProviders getFlowProviders();
+
     @Inject
     protected abstract FlowScope getFlowScope();
 
@@ -65,8 +69,9 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
             }
         }));
 
-        getFlowScope().always(ReassureUsers.class, spec -> spec.getParameters()
-                .getProblems()
-                .set(getProviderFactory().provider(() -> getConfigurationCacheProblems())));
+        getFlowScope().always(ReassureUsers.class, spec -> {
+            spec.getParameters().getResult().set(getFlowProviders().getBuildWorkResult());
+            spec.getParameters().getProblems().set(getConfigurationCacheProblems());
+        });
     }
 }

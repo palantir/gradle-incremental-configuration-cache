@@ -20,6 +20,7 @@ package com.palantir.gradle.configcache.incremental;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import org.gradle.api.flow.BuildWorkResult;
 import org.gradle.api.flow.FlowAction;
 import org.gradle.api.flow.FlowParameters;
 import org.gradle.api.provider.Property;
@@ -35,6 +36,12 @@ public abstract class ReassureUsers implements FlowAction<ReassureUsers.Params> 
     interface Params extends FlowParameters {
         @Input
         Property<ConfigurationCacheProblems> getProblems();
+
+        // Exists to guarantee this FlowAction is run after build finishes
+        // https://docs.gradle.org/current/userguide/dataflow_actions.html#using_lifecycle_event_providers
+        @SuppressWarnings("unused")
+        @Input
+        Property<BuildWorkResult> getResult();
     }
 
     @Override
