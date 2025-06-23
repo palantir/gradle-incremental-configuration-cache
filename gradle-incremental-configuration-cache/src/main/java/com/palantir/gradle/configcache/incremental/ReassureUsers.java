@@ -77,8 +77,7 @@ public abstract class ReassureUsers implements FlowAction<ReassureUsers.Params> 
 
             return problemCount > 0;
         } catch (Exception e) {
-
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to check if there are configuration cache problems", e);
         }
     }
 }

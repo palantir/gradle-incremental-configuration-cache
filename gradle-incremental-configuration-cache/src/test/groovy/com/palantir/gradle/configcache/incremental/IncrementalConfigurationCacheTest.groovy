@@ -56,10 +56,10 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
             include 'subproject'
         '''.stripIndent(true)
 
-        file("subproject/build.gradle") << '''
+        addSubproject("subproject", '''
             apply plugin: 'com.palantir.incremental-configuration-cache'
             apply plugin: 'java-library'
-        '''.stripIndent(true)
+        '''.stripIndent(true))
 
         file("gradle/configuration-cache-allowed-tasks") << '''
             :compileJava
@@ -101,22 +101,26 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         !output.contains('Configuration cache entry stored.')
     }
 
-    @Unroll
-    def "reassure users iff there are configuration cache problems"() {
+    def "reassure user when there are configuration cache problems"() {
         file("gradle/configuration-cache-allowed-tasks") << ""
 
         when:
-        def buildResult = createRunner([task, '--configuration-cache'] as String[]).build()
+        def buildResult = createRunner("breaksConfigurationCache", '--configuration-cache').build()
+        def output = buildResult.output
 
         then:
-        buildResult.output.contains(
-                "[IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out"
-        ) == shouldReassure
+        output.contains("[IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out")
+    }
 
-        where:
-        task                         | shouldReassure
-        "breaksConfigurationCache"   | true
-        "supportsConfigurationCache" | false
+    def "don't reassure user when there are no configuration cache problems"() {
+        file("gradle/configuration-cache-allowed-tasks") << ""
+
+        when:
+        def buildResult = createRunner("supportsConfigurationCache", '--configuration-cache').build()
+        def output = buildResult.output
+
+        then:
+        !output.contains("[IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out")
     }
 
     private void runTasksWithConfigurationCache(String... tasks) {
