@@ -16,6 +16,8 @@
 
 package com.palantir.gradle.configcache.incremental;
 
+// CHECKSTYLE:OFF
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
@@ -25,6 +27,8 @@ import org.gradle.api.Project;
 import org.gradle.api.flow.FlowScope;
 import org.gradle.api.provider.ProviderFactory;
 import org.gradle.internal.cc.impl.problems.ConfigurationCacheProblems;
+// CHECKSTYLE:ON
+
 
 public abstract class IncrementalConfigurationCachePlugin implements Plugin<Project> {
     @Inject

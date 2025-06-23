@@ -16,6 +16,8 @@
 
 package com.palantir.gradle.configcache.incremental;
 
+// CHECKSTYLE:OFF
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import org.gradle.api.flow.FlowAction;
@@ -25,6 +27,7 @@ import org.gradle.api.tasks.Input;
 import org.gradle.internal.cc.impl.problems.ConfigurationCacheProblems;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+// CHECKSTYLE:ON
 
 public abstract class ReassureUsers implements FlowAction<ReassureUsers.Params> {
     private static final Logger log = LoggerFactory.getLogger(ReassureUsers.class);
@@ -35,7 +38,7 @@ public abstract class ReassureUsers implements FlowAction<ReassureUsers.Params> 
     }
 
     @Override
-    public void execute(Params params) {
+    public final void execute(Params params) {
         if (hasConfigurationCacheProblems(params.getProblems().get())) {
             log.warn(
                     """
@@ -46,7 +49,7 @@ public abstract class ReassureUsers implements FlowAction<ReassureUsers.Params> 
     }
 
     /**
-     * Use reflection to access Gradle's internal state, to check if there are problems with the Configuration Cache
+     * Use reflection to access Gradle's internal state, to check if there are problems with the Configuration Cache.
      */
     public static boolean hasConfigurationCacheProblems(Object configCacheProblems) {
         try {
