@@ -20,6 +20,7 @@ package com.palantir.gradle.configcache.incremental;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Optional;
 import org.gradle.api.flow.BuildWorkResult;
 import org.gradle.api.flow.FlowAction;
 import org.gradle.api.flow.FlowParameters;
@@ -46,13 +47,22 @@ public abstract class ReassureUsers implements FlowAction<ReassureUsers.Params> 
 
     @Override
     public final void execute(Params params) {
-        if (hasConfigurationCacheProblems(params.getProblems().get())) {
-            log.warn(
-                    """
-                            [IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out.
-                            You may see Configuration Cache problems/warnings for some tasks during this process.
-                            These issues will be addressed as support for the configuration cache is improved.""");
+        if (params.getResult()
+                .map(BuildWorkResult::getFailure)
+                .map(Optional::isEmpty)
+                .get()) {
+            return;
         }
+
+        if (!hasConfigurationCacheProblems(params.getProblems().get())) {
+            return;
+        }
+
+        log.warn(
+                """
+                        [IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out.
+                        You may see Configuration Cache problems/warnings for some tasks during this process.
+                        These issues will be addressed as support for the configuration cache is improved.""");
     }
 
     /**

@@ -123,6 +123,21 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         !output.contains("[IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out")
     }
 
+    def "don't reassure user when there is a build failure"() {
+        file("gradle/configuration-cache-allowed-tasks") << ""
+        // language=Gradle
+        buildFile << '''
+            "ls".execute()
+        '''.stripIndent(true)
+
+        when:
+        def buildResult = createRunner("supportsConfigurationCache", '--configuration-cache').buildAndFail()
+        def output = buildResult.output
+
+        then:
+        !output.contains("[IncrementalConfigurationCachePlugin] ⚠️ Configuration Cache is being rolled out")
+    }
+
     private void runTasksWithConfigurationCache(String... tasks) {
         def firstRun = createRunner(tasks + ['--configuration-cache'] as String[]).build()
         def firstOutput = firstRun.output
