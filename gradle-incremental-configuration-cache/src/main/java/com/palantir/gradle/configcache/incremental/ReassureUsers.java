@@ -49,7 +49,7 @@ public abstract class ReassureUsers implements FlowAction<ReassureUsers.Params> 
     public final void execute(Params params) {
         if (params.getResult()
                 .map(BuildWorkResult::getFailure)
-                .map(Optional::isEmpty)
+                .map(Optional::isPresent)
                 .get()) {
             return;
         }
