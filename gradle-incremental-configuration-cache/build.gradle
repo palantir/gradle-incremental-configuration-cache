@@ -8,6 +8,8 @@ dependencies {
     annotationProcessor 'org.immutables:value'
     compileOnly 'org.immutables:value::annotations'
 
+    implementation 'org.semver4j:semver4j'
+
     testImplementation gradleTestKit()
     testImplementation 'com.netflix.nebula:nebula-test'
     testImplementation 'org.junit.jupiter:junit-jupiter'

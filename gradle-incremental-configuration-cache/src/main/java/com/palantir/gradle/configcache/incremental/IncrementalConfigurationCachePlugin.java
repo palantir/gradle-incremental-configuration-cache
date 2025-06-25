@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.util.Set;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.semver4j.Semver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,10 +30,21 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
 
     public static final Path ALLOW_LIST_FILE = Path.of("gradle/configuration-cache-allowed-tasks");
 
+    public static final Semver MIN_GRADLE_VERSION = Semver.parse("8.12.0");
+
     @Override
     public final void apply(Project project) {
         if (!project.getRootProject().equals(project)) {
             throw new RuntimeException("Must be applied only to root project");
+        }
+
+        Semver gradleVersion = Semver.parse(project.getGradle().getGradleVersion());
+
+        // To prevent e.g. Gradle 7 repos from picking this up
+        if (gradleVersion.isLowerThan(MIN_GRADLE_VERSION)) {
+            throw new IllegalStateException(
+                    "Cannot apply IncrementalConfigurationCachePlugin with Gradle version older than %s"
+                            .formatted(MIN_GRADLE_VERSION));
         }
 
         Path allowListPath = project.getRootProject().getProjectDir().toPath().resolve(ALLOW_LIST_FILE);
