@@ -13,6 +13,14 @@ To apply the plugin:
 apply plugin: 'com.palantir.incremental-configuration-cache'
 ```
 
+## FAQ
+
+#### After applying this plugin, I'm seeing "configuration cache problems found in this build". What's going on?
+
+Suppose a task `T` hasn't been [updated to support the configuration cache](https://docs.gradle.org/current/userguide/configuration_cache.html#config_cache:requirements), and is not in `gradle/configuration-cache-allowed-tasks`. 
+
+When you [run gradle with the configuration cache](https://docs.gradle.org/current/userguide/configuration_cache.html#config_cache:usage:enable) , `T` will run successfully without the configuration cache, but all the configuration cache problems within `T`'s implementation will be surfaced as a warning to the user. Gradle does not provide a safe way to suppress these warnings. 
+
 
 ## Motivation
 
