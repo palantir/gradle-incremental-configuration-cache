@@ -1,0 +1,5 @@
+type: improvement
+improvement:
+  description: Blow up if applied to Gradle < 8.12
+  links:
+  - https://github.com/palantir/gradle-incremental-configuration-cache/pull/13
