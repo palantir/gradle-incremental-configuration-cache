@@ -89,6 +89,36 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         !output.contains('Configuration cache entry stored.')
     }
 
+    def 'blows up if gradleVersion lower than 8.12.0'() {
+        file("gradle/configuration-cache-allowed-tasks") << ''
+
+        given:
+        def runner = createRunner('--info').withGradleVersion(gradleVersion)
+
+        when:
+        def buildResult = runner.buildAndFail()
+        def output = buildResult.output
+
+        then:
+        output.contains("Cannot apply IncrementalConfigurationCachePlugin with Gradle version older than Gradle 8.12.0")
+
+        where:
+        gradleVersion << ["7.6.5", "8.11.1"]
+    }
+
+    def "does not blow if if gradleVersion is at least 8.12.0"() {
+        file("gradle/configuration-cache-allowed-tasks") << ''
+
+        given:
+        def runner = createRunner('--info').withGradleVersion(gradleVersion)
+
+        expect:
+        runner.build()
+
+        where:
+        gradleVersion << ["8.12.1", "8.14.2"]
+    }
+
     private boolean runTasksWithConfigurationCache(String... tasks) {
         def firstRun = createRunner(tasks + ['--configuration-cache'] as String[]).build()
         def firstOutput = firstRun.output
