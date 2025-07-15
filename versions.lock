@@ -1,5 +1,5 @@
 # Run ./gradlew writeVersionsLocks to regenerate this file
-org.immutables:value:2.11.0 (1 constraints: 3605323b)
+org.immutables:value:2.11.1 (1 constraints: 3705333b)
 
 [Test dependencies]
 cglib:cglib-nodep:3.2.2 (1 constraints: 490ded24)
