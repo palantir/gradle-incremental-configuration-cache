@@ -33,6 +33,7 @@ public final class AllowListFile {
         }
     }
 
+    @SuppressWarnings("for-rollout:PreferUncheckedIoException")
     public Set<String> loadAllowedTasks() {
         try {
             return Files.readAllLines(path).stream()
