@@ -17,6 +17,7 @@
 package com.palantir.gradle.configcache.incremental;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
@@ -33,7 +34,6 @@ public final class AllowListFile {
         }
     }
 
-    @SuppressWarnings("for-rollout:PreferUncheckedIoException")
     public Set<String> loadAllowedTasks() {
         try {
             return Files.readAllLines(path).stream()
@@ -41,7 +41,7 @@ public final class AllowListFile {
                     .filter(line -> !line.isEmpty() && !line.startsWith("#"))
                     .collect(Collectors.toSet());
         } catch (IOException e) {
-            throw new RuntimeException("Failed to read configuration cache allowed tasks file: " + path, e);
+            throw new UncheckedIOException("Failed to read configuration cache allowed tasks file: " + path, e);
         }
     }
 }
