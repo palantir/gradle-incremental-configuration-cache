@@ -4,7 +4,7 @@
 
 # gradle-incremental-configuration-cache
 
-This gradle plugin allows for the incremental adoption of the [Configuration Cache](https://docs.gradle.org/current/userguide/configuration_cache.html).
+This gradle plugin allows for the incremental adoption of the [Configuration Cache](https://docs.gradle.org/8.14.3/userguide/configuration_cache.html).
 
 ## Usage
 To apply the plugin:
@@ -17,14 +17,14 @@ apply plugin: 'com.palantir.incremental-configuration-cache'
 
 #### After applying this plugin, I'm seeing "configuration cache problems found in this build". What's going on?
 
-Suppose a task `T` hasn't been [updated to support the configuration cache](https://docs.gradle.org/current/userguide/configuration_cache.html#config_cache:requirements), and is not in `gradle/configuration-cache-allowed-tasks`. 
+Suppose a task `T` hasn't been [updated to support the configuration cache](https://docs.gradle.org/8.14.3/userguide/configuration_cache.html#config_cache:requirements), and is not in `gradle/configuration-cache-allowed-tasks`. 
 
-When you [run gradle with the configuration cache](https://docs.gradle.org/current/userguide/configuration_cache.html#config_cache:usage:enable) , `T` will run successfully without the configuration cache, but all the configuration cache problems within `T`'s implementation will be surfaced as a warning to the user. Gradle does not provide a safe way to suppress these warnings. 
+When you [run gradle with the configuration cache](https://docs.gradle.org/8.14.3/userguide/configuration_cache.html#config_cache:usage:enable) , `T` will run successfully without the configuration cache, but all the configuration cache problems within `T`'s implementation will be surfaced as a warning to the user. Gradle does not provide a safe way to suppress these warnings. 
 
 
 ## Motivation
 
-Rolling out Gradle's Configuration Cache is hard. If you turn on the Configuration Cache by default, builds start to fail, as the plugins they depend on haven't been [updated to support the Configuration Cache](https://docs.gradle.org/current/userguide/configuration_cache.html#config_cache:requirements).
+Rolling out Gradle's Configuration Cache is hard. If you turn on the Configuration Cache by default, builds start to fail, as the plugins they depend on haven't been [updated to support the Configuration Cache](https://docs.gradle.org/8.14.3/userguide/configuration_cache.html#config_cache:requirements).
 
 Annoyingly, warn mode [fails your builds if Configuration Cache problems are found](https://github.com/gradle/gradle/issues/25235). This deviates from the expected and desired behavior, which is to warn about Configuration Cache issues, but run the build without Configuration Cache successfully.
 
