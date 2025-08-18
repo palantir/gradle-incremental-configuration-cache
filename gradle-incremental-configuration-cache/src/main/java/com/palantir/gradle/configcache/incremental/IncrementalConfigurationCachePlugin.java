@@ -16,21 +16,44 @@
 
 package com.palantir.gradle.configcache.incremental;
 
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
+import javax.inject.Inject;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.file.FileSystemLocation;
+import org.gradle.api.file.ProjectLayout;
+import org.gradle.api.flow.BuildWorkResult;
+import org.gradle.api.flow.FlowAction;
+import org.gradle.api.flow.FlowParameters;
+import org.gradle.api.flow.FlowProviders;
+import org.gradle.api.flow.FlowScope;
+import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Input;
+import org.gradle.internal.cc.impl.ConfigurationCacheKey;
 import org.gradle.util.GradleVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
+public abstract class IncrementalConfigurationCachePlugin implements Plugin<Project> {
     private static final Logger log = LoggerFactory.getLogger(IncrementalConfigurationCachePlugin.class);
 
-    public static final Path ALLOW_LIST_FILE = Path.of("gradle/configuration-cache-allowed-tasks");
+    private static final Path ALLOW_LIST_FILE = Path.of("gradle/configuration-cache-allowed-tasks");
+    private static final GradleVersion MIN_GRADLE_VERSION = GradleVersion.version("8.12.0");
 
-    public static final GradleVersion MIN_GRADLE_VERSION = GradleVersion.version("8.12.0");
+    @Inject
+    protected abstract FlowScope getFlowScope();
+
+    @Inject
+    protected abstract FlowProviders getFlowProviders();
+
+    @Inject
+    protected abstract ConfigurationCacheKey getConfigurationCacheKey();
+
+    @Inject
+    protected abstract ProjectLayout getProjectLayout();
 
     @Override
     public final void apply(Project project) {
@@ -61,5 +84,37 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
                                 .formatted(ALLOW_LIST_FILE));
             }
         }));
+
+        getFlowScope().always(CopyConfigurationCacheProblems.class, spec -> {
+            spec.parameters(parameters -> {
+                parameters.getBuildWorkResult().set(getFlowProviders().getBuildWorkResult());
+                parameters
+                        .getConfigurationCacheProblemsFile()
+                        .set(getProjectLayout().getBuildDirectory().map(FileSystemLocation::getAsFile));
+                parameters
+                        .getOutputFile()
+                        .set(getProjectLayout().getBuildDirectory().map(FileSystemLocation::getAsFile));
+            });
+        });
+    }
+
+    static final class CopyConfigurationCacheProblems implements FlowAction<CopyConfigurationCacheProblems.Parameters> {
+        interface Parameters extends FlowParameters {
+            @Input
+            Property<BuildWorkResult> getBuildWorkResult();
+
+            @Input
+            Property<File> getConfigurationCacheProblemsFile();
+
+            @Input
+            Property<File> getOutputFile();
+        }
+
+        @Override
+        public void execute(Parameters parameters) throws Exception {
+            Files.copy(
+                    parameters.getConfigurationCacheProblemsFile().get().toPath(),
+                    parameters.getOutputFile().get().toPath());
+        }
     }
 }

@@ -35,3 +35,7 @@ gradlePlugin {
 gradleTestUtils {
     gradleVersions = ['8.14.3']
 }
+
+moduleJvmArgs {
+    opens('java.base/java.lang.invoke', 'java.base/java.lang.util', 'java.base/java.util')
+}
