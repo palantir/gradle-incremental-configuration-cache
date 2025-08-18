@@ -165,7 +165,7 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
             'ls'.execute()
         '''.stripIndent(true)
 
-        when: 'configuration cache is enabled, running on circleci'
+        when: 'configuration cache is enabled, running locally'
         def output = createRunner(
                 '--info',
                 '--configuration-cache',
