@@ -1,5 +1,5 @@
 # Run ./gradlew writeVersionsLocks to regenerate this file
-com.palantir.gradle.utils:environment-variables:0.16.0 (1 constraints: 3905353b)
+com.palantir.gradle.utils:environment-variables:0.17.0 (1 constraints: 3a05383b)
 org.immutables:value:2.11.3 (1 constraints: 3905353b)
 
 [Test dependencies]
