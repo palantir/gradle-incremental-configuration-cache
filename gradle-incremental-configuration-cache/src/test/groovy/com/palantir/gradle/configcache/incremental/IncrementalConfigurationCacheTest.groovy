@@ -156,6 +156,33 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         reports.size() == 1
     }
 
+    def 'outputs configuration cache reports to normal location when running locally'() {
+        file('gradle/configuration-cache-allowed-tasks') << ''
+
+        // language=Gradle
+        buildFile << '''
+            // Fail configuration cache at configuration time
+            'ls'.execute()
+        '''.stripIndent(true)
+
+        when: 'configuration cache is enabled, running on circleci'
+        def output = createRunner(
+                '--info',
+                '--configuration-cache',
+        ).buildAndFail().output
+
+        then: 'it fails due to configuration cache problems, a configuration cache report is in the usual location'
+        output.contains('Configuration cache problems found in this build')
+
+        def circleArtifactsReports = new File(projectDir, 'build/reports/configuration-cache')
+        circleArtifactsReports.exists()
+
+        def reports = []
+        circleArtifactsReports.traverse(type: FileType.FILES, maxDepth: 4) { reports.add(it) }
+
+        reports.size() == 1
+    }
+
     private boolean runTasksWithConfigurationCache(String... tasks) {
         def firstRun = createRunner(tasks + ['--configuration-cache'] as String[]).build()
         def firstOutput = firstRun.output
