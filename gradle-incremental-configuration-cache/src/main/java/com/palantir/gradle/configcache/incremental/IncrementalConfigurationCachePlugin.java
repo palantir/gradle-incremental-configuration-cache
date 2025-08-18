@@ -115,12 +115,11 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         }
     }
 
-    private static void createDirectories(Path circleArtifactsConfigurationCacheReportsDir) {
+    private static void createDirectories(Path directory) {
         try {
-            Files.createDirectories(circleArtifactsConfigurationCacheReportsDir);
+            Files.createDirectories(directory);
         } catch (IOException e) {
-            throw new UncheckedIOException(
-                    "Could not create directories to '%s'".formatted(circleArtifactsConfigurationCacheReportsDir), e);
+            throw new UncheckedIOException("Could not create directories to '%s'".formatted(directory), e);
         }
     }
 }
