@@ -16,23 +16,17 @@
 
 package com.palantir.gradle.configcache.incremental;
 
-import java.io.File;
+import com.palantir.gradle.utils.environmentvariables.EnvironmentVariables;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
 import javax.inject.Inject;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.api.file.FileSystemLocation;
 import org.gradle.api.file.ProjectLayout;
-import org.gradle.api.flow.BuildWorkResult;
-import org.gradle.api.flow.FlowAction;
-import org.gradle.api.flow.FlowParameters;
-import org.gradle.api.flow.FlowProviders;
-import org.gradle.api.flow.FlowScope;
-import org.gradle.api.provider.Property;
-import org.gradle.api.tasks.Input;
-import org.gradle.internal.cc.impl.ConfigurationCacheKey;
+import org.gradle.api.tasks.Nested;
 import org.gradle.util.GradleVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,16 +38,10 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
     private static final GradleVersion MIN_GRADLE_VERSION = GradleVersion.version("8.12.0");
 
     @Inject
-    protected abstract FlowScope getFlowScope();
-
-    @Inject
-    protected abstract FlowProviders getFlowProviders();
-
-    @Inject
-    protected abstract ConfigurationCacheKey getConfigurationCacheKey();
-
-    @Inject
     protected abstract ProjectLayout getProjectLayout();
+
+    @Nested
+    protected abstract EnvironmentVariables getEnvironmentVariables();
 
     @Override
     public final void apply(Project project) {
@@ -85,36 +73,54 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
             }
         }));
 
-        getFlowScope().always(CopyConfigurationCacheProblems.class, spec -> {
-            spec.parameters(parameters -> {
-                parameters.getBuildWorkResult().set(getFlowProviders().getBuildWorkResult());
-                parameters
-                        .getConfigurationCacheProblemsFile()
-                        .set(getProjectLayout().getBuildDirectory().map(FileSystemLocation::getAsFile));
-                parameters
-                        .getOutputFile()
-                        .set(getProjectLayout().getBuildDirectory().map(FileSystemLocation::getAsFile));
-            });
-        });
+        ensureReportsDirIsSymlinkedToCircleArtifacts();
     }
 
-    static final class CopyConfigurationCacheProblems implements FlowAction<CopyConfigurationCacheProblems.Parameters> {
-        interface Parameters extends FlowParameters {
-            @Input
-            Property<BuildWorkResult> getBuildWorkResult();
-
-            @Input
-            Property<File> getConfigurationCacheProblemsFile();
-
-            @Input
-            Property<File> getOutputFile();
+    private void ensureReportsDirIsSymlinkedToCircleArtifacts() {
+        if (!getEnvironmentVariables().envVarOrFromTestingProperty("CIRCLECI").isPresent()) {
+            return;
         }
 
-        @Override
-        public void execute(Parameters parameters) throws Exception {
-            Files.copy(
-                    parameters.getConfigurationCacheProblemsFile().get().toPath(),
-                    parameters.getOutputFile().get().toPath());
+        Path originalConfigurationCacheReportsDir = getProjectLayout()
+                .getBuildDirectory()
+                .dir("reports/configuration-cache")
+                .get()
+                .getAsFile()
+                .toPath();
+
+        // If it already exists, a gradle invocation ran before and we should have already symlinked it
+        if (Files.exists(originalConfigurationCacheReportsDir)) {
+            return;
+        }
+
+        Path circleArtifactsConfigurationCacheReportsDir = Path.of(
+                getEnvironmentVariables()
+                        .envVarOrFromTestingProperty("CIRCLE_ARTIFACTS")
+                        // Some templates still do not set CIRCLE_ARTIFACTS :(
+                        .orElse("/home/circleci/artifacts")
+                        .get(),
+                "configuration-cache-reports");
+
+        createDirectories(originalConfigurationCacheReportsDir.getParent());
+        createDirectories(circleArtifactsConfigurationCacheReportsDir);
+
+        try {
+            Files.createSymbolicLink(originalConfigurationCacheReportsDir, circleArtifactsConfigurationCacheReportsDir);
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                    "Could not symlink configuration cache reports dir ('%s') to circle artifacts ('%s')"
+                            .formatted(
+                                    originalConfigurationCacheReportsDir, circleArtifactsConfigurationCacheReportsDir),
+                    e);
+        }
+    }
+
+    private static void createDirectories(Path circleArtifactsConfigurationCacheReportsDir) {
+        try {
+            Files.createDirectories(circleArtifactsConfigurationCacheReportsDir);
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                    "Could not create directories to '%s'".formatted(circleArtifactsConfigurationCacheReportsDir), e);
         }
     }
 }

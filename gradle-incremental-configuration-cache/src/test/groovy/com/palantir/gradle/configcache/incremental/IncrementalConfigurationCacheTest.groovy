@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 package com.palantir.gradle.configcache.incremental
+
+import groovy.io.FileType
 import nebula.test.IntegrationTestKitSpec
 
 
@@ -26,6 +28,11 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         buildFile << '''
             apply plugin: 'com.palantir.incremental-configuration-cache'
             apply plugin: 'java-library'
+        '''.stripIndent(true)
+
+        // Put environment-variables in testing mode
+        file('gradle.properties') << '''
+            __TESTING=true
         '''.stripIndent(true)
     }
 
@@ -117,6 +124,36 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
 
         where:
         gradleVersion << ["8.12.1", "8.14.2"]
+    }
+
+    def 'copies configuration cache reports to circle artifacts'() {
+        file('gradle/configuration-cache-allowed-tasks') << ''
+
+        // language=Gradle
+        buildFile << '''
+            // Fail configuration cache at configuration time
+            'ls'.execute()
+        '''.stripIndent(true)
+
+        when: 'configuration cache is enabled, running on circleci'
+        def output = createRunner(
+                '--info',
+                '--configuration-cache',
+                '-P__TESTING_CIRCLECI=true',
+                '-P__TESTING_CIRCLE_ARTIFACTS=' + getProjectDir().toPath().resolve('circle-artifacts')
+        ).buildAndFail().output
+
+        then: 'it fails due to configuration cache problems, a configuration cache report is in the circle artifacts directory'
+        output.contains('Configuration cache problems found in this build')
+
+
+        def circleArtifactsReports = new File(projectDir, 'circle-artifacts/configuration-cache-reports')
+        circleArtifactsReports.exists()
+
+        def reports = []
+        circleArtifactsReports.traverse(type: FileType.FILES, maxDepth: 4) { reports.add(it) }
+
+        reports.size() == 1
     }
 
     private boolean runTasksWithConfigurationCache(String... tasks) {
