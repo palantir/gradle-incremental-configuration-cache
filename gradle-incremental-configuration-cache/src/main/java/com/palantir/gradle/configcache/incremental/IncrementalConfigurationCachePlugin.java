@@ -16,21 +16,32 @@
 
 package com.palantir.gradle.configcache.incremental;
 
+import com.palantir.gradle.utils.environmentvariables.EnvironmentVariables;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
+import javax.inject.Inject;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.file.ProjectLayout;
+import org.gradle.api.tasks.Nested;
 import org.gradle.util.GradleVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
+public abstract class IncrementalConfigurationCachePlugin implements Plugin<Project> {
     private static final Logger log = LoggerFactory.getLogger(IncrementalConfigurationCachePlugin.class);
 
-    public static final Path ALLOW_LIST_FILE = Path.of("gradle/configuration-cache-allowed-tasks");
+    private static final Path ALLOW_LIST_FILE = Path.of("gradle/configuration-cache-allowed-tasks");
+    private static final GradleVersion MIN_GRADLE_VERSION = GradleVersion.version("8.12.0");
 
-    public static final GradleVersion MIN_GRADLE_VERSION = GradleVersion.version("8.12.0");
+    @Inject
+    protected abstract ProjectLayout getProjectLayout();
+
+    @Nested
+    protected abstract EnvironmentVariables getEnvironmentVariables();
 
     @Override
     public final void apply(Project project) {
@@ -61,5 +72,54 @@ public class IncrementalConfigurationCachePlugin implements Plugin<Project> {
                                 .formatted(ALLOW_LIST_FILE));
             }
         }));
+
+        ensureReportsDirIsSymlinkedToCircleArtifacts();
+    }
+
+    private void ensureReportsDirIsSymlinkedToCircleArtifacts() {
+        if (!getEnvironmentVariables().envVarOrFromTestingProperty("CIRCLECI").isPresent()) {
+            return;
+        }
+
+        Path originalConfigurationCacheReportsDir = getProjectLayout()
+                .getBuildDirectory()
+                .dir("reports/configuration-cache")
+                .get()
+                .getAsFile()
+                .toPath();
+
+        // If it already exists, a gradle invocation ran before and we should have already symlinked it
+        if (Files.exists(originalConfigurationCacheReportsDir)) {
+            return;
+        }
+
+        Path circleArtifactsConfigurationCacheReportsDir = Path.of(
+                getEnvironmentVariables()
+                        .envVarOrFromTestingProperty("CIRCLE_ARTIFACTS")
+                        // Some templates still do not set CIRCLE_ARTIFACTS :(
+                        .orElse("/home/circleci/artifacts")
+                        .get(),
+                "configuration-cache-reports");
+
+        createDirectories(originalConfigurationCacheReportsDir.getParent());
+        createDirectories(circleArtifactsConfigurationCacheReportsDir);
+
+        try {
+            Files.createSymbolicLink(originalConfigurationCacheReportsDir, circleArtifactsConfigurationCacheReportsDir);
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                    "Could not symlink configuration cache reports dir ('%s') to circle artifacts ('%s')"
+                            .formatted(
+                                    originalConfigurationCacheReportsDir, circleArtifactsConfigurationCacheReportsDir),
+                    e);
+        }
+    }
+
+    private static void createDirectories(Path directory) {
+        try {
+            Files.createDirectories(directory);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not create directories to '%s'".formatted(directory), e);
+        }
     }
 }
