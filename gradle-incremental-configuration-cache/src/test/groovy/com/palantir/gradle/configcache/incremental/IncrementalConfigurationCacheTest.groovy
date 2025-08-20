@@ -250,22 +250,15 @@ class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
         def buildResult = runner.buildAndFail()
         def output = buildResult.output
 
-        then: "the build fails due to config cache problems"
+        then: 'it fails due to configuration cache problems, a configuration cache report is in the usual location'
         output.contains('Configuration cache problems found in this build')
 
-        and: "the original directory is now a symlink"
-        def reportsPath = new File(projectDir, "build/reports/configuration-cache").toPath()
-        Files.isSymbolicLink(reportsPath)
-
-        and: "the symlink points to the circle artifacts directory"
-        def expectedTarget = circleArtifactsDir.toPath().resolve("configuration-cache-reports")
-        Files.readSymbolicLink(reportsPath) == expectedTarget
-
-        and: "a report exists in the target directory"
-        def circleArtifactsReports = new File(projectDir, 'circle-artifacts/configuration-cache-reports')
+        def circleArtifactsReports = new File(projectDir, 'build/reports/configuration-cache')
         circleArtifactsReports.exists()
+
         def reports = []
         circleArtifactsReports.traverse(type: FileType.FILES, maxDepth: 4) { reports.add(it) }
+
         reports.size() == 1
     }
 }
