@@ -15,15 +15,15 @@
  */
 package com.palantir.gradle.configcache.incremental
 
+import com.palantir.gradle.plugintesting.ConfigurationCacheSpec
 import groovy.io.FileType
 import nebula.test.IntegrationTestKitSpec
 
+import java.nio.file.Files
 
-class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
+
+class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
     def setup() {
-        definePluginOutsideOfPluginBlock = true
-        keepFiles = true
-
         // language=gradle
         buildFile << '''
             apply plugin: 'com.palantir.incremental-configuration-cache'
@@ -79,7 +79,7 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
         '''.stripIndent(true)
 
         expect:
-        runTasksWithConfigurationCache("classes")
+        runTasksWithConfigurationCacheAndCheck("classes")
     }
 
     def "tasks not in allow list don't run with config cache"() {
@@ -182,18 +182,44 @@ class IncrementalConfigurationCacheTest extends IntegrationTestKitSpec {
 
         reports.size() == 1
     }
+    def "blows up if reports directory is a broken symlink"() {
+        given: "the build is configured to run on circle"
+        file("gradle/configuration-cache-allowed-tasks") << ""
 
-    private boolean runTasksWithConfigurationCache(String... tasks) {
-        def firstRun = createRunner(tasks + ['--configuration-cache'] as String[]).build()
-        def firstOutput = firstRun.output
-        assert firstOutput.contains('Configuration cache entry stored.'),
-                "Expected first run to store configuration cache, but output was: ${firstRun.output}"
+        // language=Gradle
+        buildFile << '''
+            // Fail configuration cache at configuration time
+            'ls'.execute()
+        '''.stripIndent(true)
 
-        def secondRun = createRunner(tasks + ['--configuration-cache'] as String[]).build()
-        def secondOutput = secondRun.output
-        assert secondOutput.contains('Configuration cache entry reused.'),
-                "Expected second run to reuse configuration cache, but output was: ${secondRun.output}"
+        def circleArtifactsDir = new File(projectDir, "circle-artifacts")
+        def runner = createRunner(
+                "--info",
+                "--configuration-cache",
+                "-P__TESTING_CIRCLECI=true",
+                "-P__TESTING_CIRCLE_ARTIFACTS=" + circleArtifactsDir.absolutePath)
 
-        return true
+        and: "the configuration cache report directory is a broken symlink"
+        def reportsDir = new File(projectDir, "build/reports")
+        reportsDir.mkdirs()
+        def brokenSymlinkPath = reportsDir.toPath().resolve("configuration-cache")
+        def nonExistentTargetPath = projectDir.toPath().resolve("non-existent-target")
+        Files.createSymbolicLink(brokenSymlinkPath, nonExistentTargetPath)
+
+        when:
+        def buildResult = runner.build()
+        def output = buildResult.output
+
+        then: 'it fails due to configuration cache problems, a configuration cache report is in the usual location'
+        output.contains('Configuration cache problems found in this build')
+
+        def circleArtifactsReports = new File(projectDir, 'build/reports/configuration-cache')
+        circleArtifactsReports.exists()
+
+        def reports = []
+        circleArtifactsReports.traverse(type: FileType.FILES, maxDepth: 4) { reports.add(it) }
+
+        reports.size() == 1
     }
+
 }
