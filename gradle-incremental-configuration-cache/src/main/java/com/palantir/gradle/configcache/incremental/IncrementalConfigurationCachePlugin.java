@@ -115,7 +115,11 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         // If we're here, the path is either not a symlink, a broken/wrong symlink, or doesn't exist.
         // We need to remove it before creating our own symlink.
         try {
+            // If there are any files we need to delete them first
             FileUtils.deleteDirectory(originalConfigurationCacheReportsDir.toFile());
+
+            // Now if this is a symlink / non-empty dir we can delete it safely
+            Files.deleteIfExists(originalConfigurationCacheReportsDir);
         } catch (IOException e) {
             throw new UncheckedIOException(
                     "Failed to remove existing file at '%s' to create symlink."
