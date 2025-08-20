@@ -182,10 +182,10 @@ class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
 
         reports.size() == 1
     }
-    def "blows up if reports directory is a broken symlink"() {
-        given: "the build is configured to run on circle"
+    def 'does not blow up if reports directory is a broken symlink'() {
+        given: 'the build is configured to run on circle'
 
-        file("gradle/configuration-cache-allowed-tasks") << ""
+        file('gradle/configuration-cache-allowed-tasks') << ''
 
         // language=Gradle
         buildFile << '''
@@ -193,19 +193,19 @@ class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
             'ls'.execute()
         '''.stripIndent(true)
 
-        def circleArtifactsDir = new File(projectDir, "circle-artifacts")
+        def circleArtifactsDir = new File(projectDir, 'circle-artifacts')
         def runner = createRunner(
-                "--info",
-                "--configuration-cache",
-                "-P__TESTING_CIRCLECI=true",
-                "-P__TESTING_CIRCLE_ARTIFACTS=" + circleArtifactsDir.absolutePath)
+                '--info',
+                '--configuration-cache',
+                '-P__TESTING_CIRCLECI=true',
+                '-P__TESTING_CIRCLE_ARTIFACTS=' + circleArtifactsDir.absolutePath)
 
-        and: "the configuration cache report directory is a broken symlink"
+        and: 'the configuration cache report directory is a broken symlink'
 
-        def reportsDir = new File(projectDir, "build/reports")
+        def reportsDir = new File(projectDir, 'build/reports')
         reportsDir.mkdirs()
-        def brokenSymlinkPath = reportsDir.toPath().resolve("configuration-cache")
-        def nonExistentTargetPath = projectDir.toPath().resolve("non-existent-target")
+        def brokenSymlinkPath = reportsDir.toPath().resolve('configuration-cache')
+        def nonExistentTargetPath = projectDir.toPath().resolve('non-existent-target')
         Files.createSymbolicLink(brokenSymlinkPath, nonExistentTargetPath)
 
         when:
@@ -224,9 +224,9 @@ class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
         reports.size() == 1
     }
 
-    def "replaces non-empty directory with symlink"() {
-        given: "the build is configured to run on circle"
-        file("gradle/configuration-cache-allowed-tasks") << ""
+    def 'replaces non-empty directory with symlink'() {
+        given: 'the build is configured to run on circle'
+        file('gradle/configuration-cache-allowed-tasks') << ''
 
         // language=Gradle
         buildFile << '''
@@ -234,17 +234,17 @@ class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
             'ls'.execute()
         '''.stripIndent(true)
 
-        def circleArtifactsDir = new File(projectDir, "circle-artifacts")
+        def circleArtifactsDir = new File(projectDir, 'circle-artifacts')
         def runner = createRunner(
-                "--info",
-                "--configuration-cache",
-                "-P__TESTING_CIRCLECI=true",
-                "-P__TESTING_CIRCLE_ARTIFACTS=" + circleArtifactsDir.absolutePath)
+                '--info',
+                '--configuration-cache',
+                '-P__TESTING_CIRCLECI=true',
+                '-P__TESTING_CIRCLE_ARTIFACTS=' + circleArtifactsDir.absolutePath)
 
-        and: "the configuration cache report directory exists and is not empty"
-        def reportsDir = new File(projectDir, "build/reports/configuration-cache")
+        and: 'the configuration cache report directory exists and is not empty'
+        def reportsDir = new File(projectDir, 'build/reports/configuration-cache')
         reportsDir.mkdirs()
-        new File(reportsDir, "some-file.txt").text = "hello"
+        new File(reportsDir, 'some-file.txt').text = 'hello'
 
         when:
         def buildResult = runner.buildAndFail()
