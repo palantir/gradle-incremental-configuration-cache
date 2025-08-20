@@ -117,7 +117,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
             Files.deleteIfExists(originalConfigurationCacheReportsDir);
         } catch (IOException e) {
             throw new UncheckedIOException(
-                    ("Failed to remove existing file at '%s' to create symlink.")
+                    "Failed to remove existing file at '%s' to create symlink."
                             .formatted(originalConfigurationCacheReportsDir),
                     e);
         }
