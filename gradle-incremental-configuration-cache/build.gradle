@@ -9,6 +9,7 @@ dependencies {
     compileOnly 'org.immutables:value::annotations'
 
     implementation 'com.palantir.gradle.utils:environment-variables'
+    implementation 'commons-io:commons-io'
 
     testImplementation gradleTestKit()
     testImplementation 'com.netflix.nebula:nebula-test'

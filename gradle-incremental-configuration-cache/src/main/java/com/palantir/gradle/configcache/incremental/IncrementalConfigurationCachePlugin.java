@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
 import javax.inject.Inject;
+import org.apache.commons.io.FileUtils;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.file.ProjectLayout;
@@ -88,11 +89,6 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                 .getAsFile()
                 .toPath();
 
-        // If it already exists, a gradle invocation ran before and we should have already symlinked it
-        if (Files.exists(originalConfigurationCacheReportsDir)) {
-            return;
-        }
-
         Path circleArtifactsConfigurationCacheReportsDir = Path.of(
                 getEnvironmentVariables()
                         .envVarOrFromTestingProperty("CIRCLE_ARTIFACTS")
@@ -100,6 +96,25 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                         .orElse("/home/circleci/artifacts")
                         .get(),
                 "configuration-cache-reports");
+
+        // If the symlink is already correct, we're done.
+        if (Files.isSymbolicLink(originalConfigurationCacheReportsDir)) {
+            try {
+                if (Files.readSymbolicLink(originalConfigurationCacheReportsDir)
+                        .equals(circleArtifactsConfigurationCacheReportsDir)) {
+                    return;
+                }
+            } catch (IOException e) {
+                log.debug(
+                        "Could not read existing symlink at '{}', will try to delete and recreate it",
+                        originalConfigurationCacheReportsDir,
+                        e);
+            }
+        }
+
+        // If we're here, the path is either not a symlink, a broken/wrong symlink, or doesn't exist.
+        // We need to remove it before creating our own symlink.
+        FileUtils.deleteQuietly(originalConfigurationCacheReportsDir.toFile());
 
         createDirectories(originalConfigurationCacheReportsDir.getParent());
         createDirectories(circleArtifactsConfigurationCacheReportsDir);
