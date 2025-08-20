@@ -224,4 +224,48 @@ class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
         reports.size() == 1
     }
 
+    def "replaces non-empty directory with symlink"() {
+        given: "the build is configured to run on circle"
+        file("gradle/configuration-cache-allowed-tasks") << ""
+
+        // language=Gradle
+        buildFile << '''
+            // Fail configuration cache at configuration time to ensure a report is generated
+            'ls'.execute()
+        '''.stripIndent(true)
+
+        def circleArtifactsDir = new File(projectDir, "circle-artifacts")
+        def runner = createRunner(
+                "--info",
+                "--configuration-cache",
+                "-P__TESTING_CIRCLECI=true",
+                "-P__TESTING_CIRCLE_ARTIFACTS=" + circleArtifactsDir.absolutePath)
+
+        and: "the configuration cache report directory exists and is not empty"
+        def reportsDir = new File(projectDir, "build/reports/configuration-cache")
+        reportsDir.mkdirs()
+        new File(reportsDir, "some-file.txt").text = "hello"
+
+        when:
+        def buildResult = runner.buildAndFail()
+        def output = buildResult.output
+
+        then: "the build fails due to config cache problems"
+        output.contains('Configuration cache problems found in this build')
+
+        and: "the original directory is now a symlink"
+        def reportsPath = new File(projectDir, "build/reports/configuration-cache").toPath()
+        Files.isSymbolicLink(reportsPath)
+
+        and: "the symlink points to the circle artifacts directory"
+        def expectedTarget = circleArtifactsDir.toPath().resolve("configuration-cache-reports")
+        Files.readSymbolicLink(reportsPath) == expectedTarget
+
+        and: "a report exists in the target directory"
+        def circleArtifactsReports = new File(projectDir, 'circle-artifacts/configuration-cache-reports')
+        circleArtifactsReports.exists()
+        def reports = []
+        circleArtifactsReports.traverse(type: FileType.FILES, maxDepth: 4) { reports.add(it) }
+        reports.size() == 1
+    }
 }

@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
 import javax.inject.Inject;
+import org.apache.commons.io.FileUtils;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.file.ProjectLayout;
@@ -114,7 +115,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         // If we're here, the path is either not a symlink, a broken/wrong symlink, or doesn't exist.
         // We need to remove it before creating our own symlink.
         try {
-            Files.deleteIfExists(originalConfigurationCacheReportsDir);
+            FileUtils.deleteDirectory(originalConfigurationCacheReportsDir.toFile());
         } catch (IOException e) {
             throw new UncheckedIOException(
                     "Failed to remove existing file at '%s' to create symlink."
