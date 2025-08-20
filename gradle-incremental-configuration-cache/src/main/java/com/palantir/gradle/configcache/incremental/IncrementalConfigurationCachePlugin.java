@@ -101,6 +101,32 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                         .get(),
                 "configuration-cache-reports");
 
+        // If the symlink is already correct, we're done.
+        if (Files.isSymbolicLink(originalConfigurationCacheReportsDir)) {
+            try {
+                if (Files.readSymbolicLink(originalConfigurationCacheReportsDir)
+                        .equals(circleArtifactsConfigurationCacheReportsDir)) {
+                    return;
+                }
+            } catch (IOException e) {
+                log.debug(
+                        "Could not read existing symlink at '{}', will try to delete and recreate it",
+                        originalConfigurationCacheReportsDir,
+                        e);
+            }
+        }
+
+        // If we're here, the path is either not a symlink, a broken/wrong symlink, or doesn't exist.
+        // We need to remove it before creating our own symlink.
+        try {
+            Files.deleteIfExists(originalConfigurationCacheReportsDir);
+        } catch (IOException e) {
+            throw new UncheckedIOException(
+                    ("Failed to remove existing file at '%s' to create symlink.")
+                            .formatted(originalConfigurationCacheReportsDir),
+                    e);
+        }
+
         createDirectories(originalConfigurationCacheReportsDir.getParent());
         createDirectories(circleArtifactsConfigurationCacheReportsDir);
 

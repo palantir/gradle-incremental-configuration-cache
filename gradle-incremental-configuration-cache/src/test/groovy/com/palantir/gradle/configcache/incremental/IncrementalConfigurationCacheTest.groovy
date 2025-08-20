@@ -184,6 +184,7 @@ class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
     }
     def "blows up if reports directory is a broken symlink"() {
         given: "the build is configured to run on circle"
+
         file("gradle/configuration-cache-allowed-tasks") << ""
 
         // language=Gradle
@@ -200,6 +201,7 @@ class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
                 "-P__TESTING_CIRCLE_ARTIFACTS=" + circleArtifactsDir.absolutePath)
 
         and: "the configuration cache report directory is a broken symlink"
+
         def reportsDir = new File(projectDir, "build/reports")
         reportsDir.mkdirs()
         def brokenSymlinkPath = reportsDir.toPath().resolve("configuration-cache")
@@ -207,7 +209,7 @@ class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
         Files.createSymbolicLink(brokenSymlinkPath, nonExistentTargetPath)
 
         when:
-        def buildResult = runner.build()
+        def buildResult = runner.buildAndFail()
         def output = buildResult.output
 
         then: 'it fails due to configuration cache problems, a configuration cache report is in the usual location'
