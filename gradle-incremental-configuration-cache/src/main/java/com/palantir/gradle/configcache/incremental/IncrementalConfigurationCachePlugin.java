@@ -88,11 +88,6 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                 .getAsFile()
                 .toPath();
 
-        // If it already exists, a gradle invocation ran before and we should have already symlinked it
-        if (Files.exists(originalConfigurationCacheReportsDir)) {
-            return;
-        }
-
         Path circleArtifactsConfigurationCacheReportsDir = Path.of(
                 getEnvironmentVariables()
                         .envVarOrFromTestingProperty("CIRCLE_ARTIFACTS")
