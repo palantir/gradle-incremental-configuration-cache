@@ -261,4 +261,48 @@ class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
 
         reports.size() == 1
     }
+
+    def 'preserves existing reports in artifacts directory on subsequent runs'() {
+        given: 'the build is configured to run on circle'
+        file('gradle/configuration-cache-allowed-tasks') << ''
+
+        // language=Gradle
+        buildFile << '''
+            // Fail configuration cache at configuration time to ensure a report is generated
+            'ls'.execute()
+        '''.stripIndent(true)
+
+        def circleArtifactsDir = new File(projectDir, 'circle-artifacts')
+        def runner = createRunner(
+                '--info',
+                '--configuration-cache',
+                '-P__TESTING_CIRCLECI=true',
+                '-P__TESTING_CIRCLE_ARTIFACTS=' + circleArtifactsDir.absolutePath)
+
+        and: 'a report from a previous run already exists in the circle artifacts directory'
+        def circleReportsDir = new File(circleArtifactsDir, 'configuration-cache-reports')
+        circleReportsDir.mkdirs()
+        def previousReportFile = new File(circleReportsDir, 'previous-report.txt')
+        previousReportFile.text = 'this is from a previous run'
+
+        and: 'the symlink is already in place from the previous run'
+        def reportsDir = new File(projectDir, 'build/reports')
+        reportsDir.mkdirs()
+        Files.createSymbolicLink(reportsDir.toPath().resolve('configuration-cache'), circleReportsDir.toPath())
+
+        when:
+        def buildResult = runner.buildAndFail()
+        def output = buildResult.output
+
+        then: 'the build fails due to config cache problems'
+        output.contains('Configuration cache problems found in this build')
+
+        and: 'the pre-existing report file is not deleted'
+        previousReportFile.exists()
+
+        and: 'a new report is generated alongside the old one'
+        def reports = []
+        circleReportsDir.traverse(type: FileType.FILES, maxDepth: 4) { reports.add(it) }
+        reports.size() == 2
+    }
 }
