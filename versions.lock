@@ -1,5 +1,7 @@
 # Run ./gradlew writeVersionsLocks to regenerate this file
-com.palantir.gradle.utils:environment-variables:0.17.0 (1 constraints: 3a05383b)
+com.palantir.gradle.utils:environment-variables:999 (1 constraints: c104512c)
+com.palantir.gradle.utils:exec:999 (1 constraints: c104512c)
+com.palantir.gradle.utils:providers:999 (1 constraints: fa0c530a)
 commons-io:commons-io:2.20.0 (1 constraints: 3605333b)
 org.immutables:value:2.11.3 (1 constraints: 3905353b)
 

@@ -1,19 +1,3 @@
-/*
- * (c) Copyright 2025 Palantir Technologies Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.palantir.gradle.configcache.incremental;
 
 import com.palantir.gradle.utils.environmentvariables.EnvironmentVariables;
@@ -28,6 +12,7 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.tasks.Nested;
+import org.gradle.api.tasks.TaskProvider;
 import org.gradle.util.GradleVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +35,6 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
             throw new RuntimeException("Must be applied only to root project");
         }
 
-        // To prevent e.g. Gradle 7 repos from picking this up
         if (GradleVersion.current().compareTo(MIN_GRADLE_VERSION) < 0) {
             throw new IllegalStateException(
                     "Cannot apply IncrementalConfigurationCachePlugin with Gradle version older than %s"
@@ -73,6 +57,15 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                                 .formatted(ALLOW_LIST_FILE));
             }
         }));
+
+        TaskProvider<ValidateConfigurationCacheTask> validateAllowList = project.getTasks()
+                .register("validateConfigurationCacheAllowList", ValidateConfigurationCacheTask.class, task -> {
+                    task.getAllowedTasks().set(enabledTasks);
+                });
+
+        project.getPlugins().withId("base", _plugin -> {
+            project.getTasks().named("check").configure(task -> task.dependsOn(validateAllowList));
+        });
 
         ensureReportsDirIsSymlinkedToCircleArtifacts();
     }
