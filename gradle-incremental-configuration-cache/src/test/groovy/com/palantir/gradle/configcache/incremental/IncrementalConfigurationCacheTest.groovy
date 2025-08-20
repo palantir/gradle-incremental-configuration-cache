@@ -278,31 +278,23 @@ class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
                 '--configuration-cache',
                 '-P__TESTING_CIRCLECI=true',
                 '-P__TESTING_CIRCLE_ARTIFACTS=' + circleArtifactsDir.absolutePath)
-
-        and: 'a report from a previous run already exists in the circle artifacts directory'
         def circleReportsDir = new File(circleArtifactsDir, 'configuration-cache-reports')
-        circleReportsDir.mkdirs()
-        def previousReportFile = new File(circleReportsDir, 'previous-report.txt')
-        previousReportFile.text = 'this is from a previous run'
 
-        and: 'the symlink is already in place from the previous run'
-        def reportsDir = new File(projectDir, 'build/reports')
-        reportsDir.mkdirs()
-        Files.createSymbolicLink(reportsDir.toPath().resolve('configuration-cache'), circleReportsDir.toPath())
+        when: 'the build is run for the first time'
+        runner.buildAndFail()
 
-        when:
-        def buildResult = runner.buildAndFail()
-        def output = buildResult.output
+        then: 'a single report is created in the circle artifacts directory'
+        circleReportsDir.exists()
+        def reportsAfterFirstRun = []
+        circleReportsDir.traverse(type: FileType.FILES, maxDepth: 4) { reportsAfterFirstRun.add(it) }
+        reportsAfterFirstRun.size() == 1
 
-        then: 'the build fails due to config cache problems'
-        output.contains('Configuration cache problems found in this build')
+        when: 'the build is run a second time'
+        runner.buildAndFail()
 
-        and: 'the pre-existing report file is not deleted'
-        previousReportFile.exists()
-
-        and: 'a new report is generated alongside the old one'
-        def reports = []
-        circleReportsDir.traverse(type: FileType.FILES, maxDepth: 4) { reports.add(it) }
-        reports.size() == 2
+        then: 'a new report is generated and the original report is preserved'
+        def reportsAfterSecondRun = []
+        circleReportsDir.traverse(type: FileType.FILES, maxDepth: 4) { reportsAfterSecondRun.add(it) }
+        reportsAfterSecondRun.size() == 2
     }
 }
