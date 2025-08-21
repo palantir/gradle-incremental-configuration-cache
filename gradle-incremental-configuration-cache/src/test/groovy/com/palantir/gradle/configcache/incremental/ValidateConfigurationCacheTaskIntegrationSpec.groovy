@@ -59,7 +59,7 @@ class ValidateConfigurationCacheTaskIntegrationSpec extends ConfigurationCacheSp
 
         then:
         result.task(':validateConfigurationCacheAllowList').outcome == TaskOutcome.SUCCESS
-        result.output.contains('Validating configuration cache for 3 tasks')
+        result.output.contains('Validating that 3 tasks run with the configuration cache')
         result.output.contains('All 3 tasks passed configuration cache validation')
     }
 
