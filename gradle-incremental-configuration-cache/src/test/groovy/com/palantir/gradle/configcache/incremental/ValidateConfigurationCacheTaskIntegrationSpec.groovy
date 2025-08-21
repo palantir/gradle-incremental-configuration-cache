@@ -37,7 +37,7 @@ class ValidateConfigurationCacheTaskIntegrationSpec extends ConfigurationCacheSp
         file('gradle/configuration-cache-allowed-tasks') << ''
 
         when:
-        def result = runTasksWithConfigurationCache(true, false, 'validateConfigurationCacheAllowList')
+        def result = runTasksWithConfigurationCache(true, false, 'validateConfigurationCacheAllowList', '--info')
 
         then:
         result.task(':validateConfigurationCacheAllowList').outcome == TaskOutcome.SUCCESS
@@ -55,7 +55,7 @@ class ValidateConfigurationCacheTaskIntegrationSpec extends ConfigurationCacheSp
         '''.stripIndent(true)
 
         when:
-        def result = runTasksWithConfigurationCache('validateConfigurationCacheAllowList')
+        def result = runTasksWithConfigurationCache('validateConfigurationCacheAllowList', '--info')
 
         then:
         result.task(':validateConfigurationCacheAllowList').outcome == TaskOutcome.SUCCESS
