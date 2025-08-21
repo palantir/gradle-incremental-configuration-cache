@@ -23,6 +23,7 @@ import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.tooling.GradleConnectionException;
 import org.gradle.tooling.GradleConnector;
 import org.gradle.tooling.ProjectConnection;
 
@@ -61,7 +62,7 @@ public abstract class ValidateConfigurationCacheTask extends DefaultTask {
 
                 getLogger().lifecycle("All {} tasks passed configuration cache validation", tasks.size());
 
-            } catch (Exception e) {
+            } catch (GradleConnectionException e) {
                 throw new RuntimeException(
                         "Configuration cache validation failed. See error output for details. \n" + errorStream);
             }
