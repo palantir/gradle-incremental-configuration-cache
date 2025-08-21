@@ -78,7 +78,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
         TaskProvider<ValidateConfigurationCacheTask> validateAllowList = project.getTasks()
                 .register("validateConfigurationCacheAllowList", ValidateConfigurationCacheTask.class, task -> {
-                    task.getAllowedTasks().set(enabledTasks);
+                    task.getTasksToValidate().set(enabledTasks);
                 });
 
         project.getPluginManager().apply(LifecycleBasePlugin.class);

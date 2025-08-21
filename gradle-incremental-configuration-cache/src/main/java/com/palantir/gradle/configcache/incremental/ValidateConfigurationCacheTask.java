@@ -38,7 +38,7 @@ import org.gradle.tooling.ProjectConnection;
 public abstract class ValidateConfigurationCacheTask extends DefaultTask {
 
     @Input
-    public abstract SetProperty<String> getAllowedTasks();
+    public abstract SetProperty<String> getTasksToValidate();
 
     @Input
     @Optional
@@ -52,14 +52,14 @@ public abstract class ValidateConfigurationCacheTask extends DefaultTask {
 
     @TaskAction
     public final void validate() throws IOException {
-        Set<String> tasks = getAllowedTasks().get();
+        Set<String> tasks = getTasksToValidate().get();
 
         if (tasks.isEmpty()) {
             getLogger().info("No tasks to validate");
             return;
         }
 
-        getLogger().info("Validating configuration cache for {} tasks", tasks.size());
+        getLogger().info("Validating that {} tasks run with the configuration cache", tasks.size());
 
         GradleConnector connector = GradleConnector.newConnector()
                 .forProjectDirectory(getProjectLayout().getProjectDirectory().getAsFile());

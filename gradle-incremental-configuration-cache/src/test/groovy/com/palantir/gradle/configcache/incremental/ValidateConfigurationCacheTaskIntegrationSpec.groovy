@@ -71,9 +71,9 @@ class ValidateConfigurationCacheTaskIntegrationSpec extends ConfigurationCacheSp
         '''.stripIndent(true)
 
         buildFile << '''
-        task problematicTask {
-            'echo test'.execute() // Configuration cache problem at configuration time
-        }
+            task problematicTask {
+                'echo test'.execute() // Configuration cache problem at configuration time
+            }
         '''.stripIndent(true)
 
         when:
