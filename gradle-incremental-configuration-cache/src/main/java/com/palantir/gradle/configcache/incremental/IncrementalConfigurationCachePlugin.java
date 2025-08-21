@@ -21,11 +21,14 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.Set;
 import javax.inject.Inject;
 import org.apache.commons.io.FileUtils;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.Task;
+import org.gradle.api.execution.TaskExecutionGraph;
 import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.tasks.Nested;
 import org.gradle.util.GradleVersion;
@@ -66,15 +69,29 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         AllowListFile allowList = new AllowListFile(allowListPath);
         Set<String> enabledTasks = allowList.loadAllowedTasks();
 
-        project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
-            if (!enabledTasks.contains(task.getPath())) {
-                task.notCompatibleWithConfigurationCache(
-                        "Configuration cache is not enabled for this task, as it was not included in %s"
-                                .formatted(ALLOW_LIST_FILE));
-            }
-        }));
+        project.getGradle().getTaskGraph().whenReady(taskExecutionGraph -> {
+            Set<Task> allEnabledTasks = new HashSet<>();
+
+            // First pass: collect enabled tasks and dependencies
+            taskExecutionGraph.getAllTasks().stream()
+                    .filter(task -> enabledTasks.contains(task.getName()) || enabledTasks.contains(task.getPath()))
+                    .forEach(task -> collectTaskWithDependencies(taskExecutionGraph, task, allEnabledTasks));
+
+            // Second pass: mark incompatible tasks
+            taskExecutionGraph.getAllTasks().stream()
+                    .filter(task -> !allEnabledTasks.contains(task))
+                    .forEach(task -> task.notCompatibleWithConfigurationCache(
+                            "Configuration cache is not enabled for this task, as it was not included in %s"
+                                    .formatted(ALLOW_LIST_FILE)));
+        });
 
         ensureReportsDirIsSymlinkedToCircleArtifacts();
+    }
+
+    private void collectTaskWithDependencies(TaskExecutionGraph graph, Task task, Set<Task> collectedTasks) {
+        if (collectedTasks.add(task)) {
+            graph.getDependencies(task).forEach(dep -> collectTaskWithDependencies(graph, dep, collectedTasks));
+        }
     }
 
     private void ensureReportsDirIsSymlinkedToCircleArtifacts() {
@@ -135,6 +152,22 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
             Files.createDirectories(directory);
         } catch (IOException e) {
             throw new UncheckedIOException("Could not create directories to '%s'".formatted(directory), e);
+        }
+    }
+
+    private void addAllDependenciesRecursive(Task task, Set<Task> collectedTasks, TaskExecutionGraph graph) {
+        // Get dependencies from the task graph (returns immutable set)
+        Set<Task> graphDependencies = graph.getDependencies(task);
+
+        // Create a new mutable set to work with
+        Set<Task> allDependencies = new HashSet<>(graphDependencies);
+
+        // Process each dependency
+        for (Task depTask : allDependencies) {
+            if (collectedTasks.add(depTask)) { // Only process if newly added
+                System.out.println("  -> Adding dependency: " + depTask.getPath());
+                addAllDependenciesRecursive(depTask, collectedTasks, graph);
+            }
         }
     }
 }

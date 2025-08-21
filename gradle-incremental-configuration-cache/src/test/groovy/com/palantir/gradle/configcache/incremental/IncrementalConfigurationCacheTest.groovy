@@ -126,6 +126,89 @@ class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
         gradleVersion << ["8.12.1", "8.14.2"]
     }
 
+    def 'allows tasks by name without path prefix'() {
+        given: 'allow list with task name only'
+        file('gradle/configuration-cache-allowed-tasks') << '''
+            classes
+        '''.stripIndent(true)
+
+        when:
+        def result = runTasksWithConfigurationCacheAndCheck('classes')
+
+        then: 'task matched by name runs with config cache'
+        result.output.contains('Configuration cache entry stored')
+    }
+
+    def 'task name matches across subprojects'() {
+        given: 'multi-project build with same task name in multiple projects'
+        settingsFile << '''
+            include 'sub1'
+            include 'sub2'
+        '''.stripIndent(true)
+
+        file('sub1/build.gradle') << '''
+            apply plugin: 'java-library'
+        '''.stripIndent(true)
+
+        file('sub2/build.gradle') << '''
+            apply plugin: 'java-library'
+        '''.stripIndent(true)
+
+        file('gradle/configuration-cache-allowed-tasks') << '''
+            compileJava
+        '''.stripIndent(true)
+
+        when: 'running task in sub1'
+        def result1 = runTasksWithConfigurationCacheAndCheck(':sub1:compileJava')
+
+        then: 'task matched by name runs with config cache'
+        result1.output.contains('Configuration cache entry stored')
+
+        when: 'running task in sub2'
+        def result2 = runTasksWithConfigurationCacheAndCheck(':sub2:compileJava')
+
+        then: 'same task name in different project also works'
+        result2.output.contains('Configuration cache entry stored')
+
+        when: 'running task at top level'
+        def result3 = runTasksWithConfigurationCacheAndCheck('compileJava')
+
+        then: 'same task name in different projects also work'
+        result3.output.contains('Configuration cache entry stored')
+    }
+
+    def 'full path takes precedence for specific project'() {
+        given: 'allow list with both name and full path'
+        settingsFile << '''
+            include 'sub1'
+            include 'sub2'
+        '''.stripIndent(true)
+
+        file('sub1/build.gradle') << '''
+            apply plugin: 'java-library'
+        '''.stripIndent(true)
+
+        file('sub2/build.gradle') << '''
+            apply plugin: 'java-library'
+        '''.stripIndent(true)
+
+        file('gradle/configuration-cache-allowed-tasks') << '''
+            :sub1:classes
+        '''.stripIndent(true)
+
+        when: 'running allowed task'
+        def result1 = runTasksWithConfigurationCacheAndCheck(':sub1:classes')
+
+        then: 'task with full path match runs with config cache'
+        result1.output.contains('Configuration cache entry stored')
+
+        when: 'running same task name in different project'
+        def result2 = runTasks(':sub2:classes', '--configuration-cache')
+
+        then: 'task without match does not use config cache'
+        result2.output.contains('Configuration cache entry discarded because incompatible tasks were found')
+    }
+
     def 'copies configuration cache reports to circle artifacts'() {
         file('gradle/configuration-cache-allowed-tasks') << ''
 
