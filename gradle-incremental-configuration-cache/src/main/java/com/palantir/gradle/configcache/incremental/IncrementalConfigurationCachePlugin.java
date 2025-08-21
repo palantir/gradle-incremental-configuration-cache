@@ -154,20 +154,4 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
             throw new UncheckedIOException("Could not create directories to '%s'".formatted(directory), e);
         }
     }
-
-    private void addAllDependenciesRecursive(Task task, Set<Task> collectedTasks, TaskExecutionGraph graph) {
-        // Get dependencies from the task graph (returns immutable set)
-        Set<Task> graphDependencies = graph.getDependencies(task);
-
-        // Create a new mutable set to work with
-        Set<Task> allDependencies = new HashSet<>(graphDependencies);
-
-        // Process each dependency
-        for (Task depTask : allDependencies) {
-            if (collectedTasks.add(depTask)) { // Only process if newly added
-                System.out.println("  -> Adding dependency: " + depTask.getPath());
-                addAllDependenciesRecursive(depTask, collectedTasks, graph);
-            }
-        }
-    }
 }
