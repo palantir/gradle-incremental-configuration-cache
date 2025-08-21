@@ -126,19 +126,6 @@ class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
         gradleVersion << ["8.12.1", "8.14.2"]
     }
 
-    def 'allows tasks by name without path prefix'() {
-        given: 'allow list with task name only'
-        file('gradle/configuration-cache-allowed-tasks') << '''
-            classes
-        '''.stripIndent(true)
-
-        when:
-        def result = runTasksWithConfigurationCacheAndCheck('classes')
-
-        then: 'task matched by name runs with config cache'
-        result.output.contains('Configuration cache entry stored')
-    }
-
     def 'task name matches across subprojects'() {
         given: 'multi-project build with same task name in multiple projects'
         settingsFile << '''
