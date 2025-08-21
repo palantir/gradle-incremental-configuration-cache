@@ -29,6 +29,7 @@ import org.gradle.api.Project;
 import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.TaskProvider;
+import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.util.GradleVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,9 +81,8 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                     task.getAllowedTasks().set(enabledTasks);
                 });
 
-        project.getPlugins().withId("base", _plugin -> {
-            project.getTasks().named("check").configure(task -> task.dependsOn(validateAllowList));
-        });
+        project.getPluginManager().apply(LifecycleBasePlugin.class);
+        project.getTasks().named("check").configure(task -> task.dependsOn(validateAllowList));
 
         ensureReportsDirIsSymlinkedToCircleArtifacts();
     }
