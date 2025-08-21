@@ -49,10 +49,8 @@ public abstract class ValidateConfigurationCacheTask extends DefaultTask {
 
         getExec()
                 .exec(execSpec -> execSpec.commandLine(commandLine))
-                .mapFailure(result -> {
-                    throw new RuntimeException(
-                            "Configuration cacheable tasks from the allow list failed:" + result.stdErr());
-                })
+                .mapFailure(result -> new RuntimeException(
+                        "Configuration cacheable tasks from the allow list failed:" + result.stdErr()))
                 .get();
     }
 }
