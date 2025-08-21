@@ -21,8 +21,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.Queue;
 import java.util.Set;
 import javax.inject.Inject;
@@ -91,7 +91,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
     }
 
     private void collectTaskWithDependencies(TaskExecutionGraph graph, Task task, Set<Task> collectedTasks) {
-        Queue<Task> toProcess = new LinkedList<>();
+        Queue<Task> toProcess = new ArrayDeque<>();
         toProcess.offer(task);
 
         while (!toProcess.isEmpty()) {
