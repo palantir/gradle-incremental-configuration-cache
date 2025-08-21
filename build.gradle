@@ -42,7 +42,6 @@ allprojects {
 
     repositories {
         mavenCentral() { metadataSources { mavenPom(); ignoreGradleMetadataRedirection() } }
-        mavenLocal()
     }
 
     group 'com.palantir.gradle.incremental-configuration-cache'

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.palantir.gradle.configcache.incremental;
 
 import com.palantir.gradle.utils.environmentvariables.EnvironmentVariables;
@@ -50,6 +51,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
             throw new RuntimeException("Must be applied only to root project");
         }
 
+        // To prevent e.g. Gradle 7 repos from picking this up
         if (GradleVersion.current().compareTo(MIN_GRADLE_VERSION) < 0) {
             throw new IllegalStateException(
                     "Cannot apply IncrementalConfigurationCachePlugin with Gradle version older than %s"

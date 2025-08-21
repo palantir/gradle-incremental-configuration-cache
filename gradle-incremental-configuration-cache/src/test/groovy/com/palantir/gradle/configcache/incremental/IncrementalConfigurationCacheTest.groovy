@@ -17,8 +17,6 @@ package com.palantir.gradle.configcache.incremental
 
 import com.palantir.gradle.plugintesting.ConfigurationCacheSpec
 import groovy.io.FileType
-import nebula.test.IntegrationTestKitSpec
-import org.gradle.testkit.runner.TaskOutcome
 
 import java.nio.file.Files
 
