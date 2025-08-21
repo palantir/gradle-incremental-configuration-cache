@@ -121,7 +121,7 @@ public abstract class ValidateConfigurationCacheTask extends DefaultTask {
             Path reportDir = Path.of(artifactsDir, "configuration-cache-validation-report");
             Files.createDirectories(reportDir);
 
-            Path reportFile = reportDir.resolve("validation-report.txt");
+            Path reportFile = reportDir.resolve("validation-report");
             Files.write(reportFile, outputStream.toByteArray());
 
             return String.format("Configuration cache validation failed. See report at %s for details.", reportFile);

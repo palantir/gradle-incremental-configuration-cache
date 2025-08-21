@@ -16,6 +16,7 @@
 package com.palantir.gradle.configcache.incremental
 
 import com.palantir.gradle.plugintesting.ConfigurationCacheSpec
+import groovy.io.FileType
 import org.gradle.testkit.runner.TaskOutcome
 
 class ValidateConfigurationCacheTaskIntegrationSpec extends ConfigurationCacheSpec {
@@ -29,6 +30,11 @@ class ValidateConfigurationCacheTaskIntegrationSpec extends ConfigurationCacheSp
             tasks.named('validateConfigurationCacheAllowList') {
                 initScript.set(file('.gradle-test-kit/init.gradle').absolutePath)
             }
+        '''.stripIndent(true)
+
+        // Put environment-variables in testing mode
+        file('gradle.properties') << '''
+            __TESTING=true
         '''.stripIndent(true)
     }
 
@@ -82,6 +88,35 @@ class ValidateConfigurationCacheTaskIntegrationSpec extends ConfigurationCacheSp
         then:
         result.task(':validateConfigurationCacheAllowList').outcome == TaskOutcome.FAILED
         result.output.contains('Configuration cache validation failed')
+    }
+
+    def 'fails validation for incompatible tasks on CI creates report'() {
+        given:
+        file('gradle/configuration-cache-allowed-tasks') << '''
+            :problematicTask
+            :validateConfigurationCacheAllowList
+        '''.stripIndent(true)
+
+        buildFile << '''
+            task problematicTask {
+                'echo test'.execute() // Configuration cache problem at configuration time
+            }
+        '''.stripIndent(true)
+
+        when:
+        def result = runTasksAndFail('validateConfigurationCacheAllowList',
+                '-P__TESTING_CIRCLECI=true',
+                '-P__TESTING_CIRCLE_ARTIFACTS=' + getProjectDir().toPath().resolve('circle-artifacts')
+        )
+
+        then:
+        result.task(':validateConfigurationCacheAllowList').outcome == TaskOutcome.FAILED
+        result.output.contains('Configuration cache validation failed')
+
+        def report = new File(projectDir, 'circle-artifacts/configuration-cache-validation-report/validation-report')
+        report.exists()
+
+        report.text.contains("1 problem was found storing the configuration cache.")
     }
 
     def 'validation task is hooked into check task'() {
