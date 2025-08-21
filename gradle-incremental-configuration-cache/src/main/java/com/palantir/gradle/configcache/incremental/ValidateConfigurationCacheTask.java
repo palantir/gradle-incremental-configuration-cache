@@ -15,40 +15,56 @@
  */
 package com.palantir.gradle.configcache.incremental;
 
-import com.google.common.collect.ImmutableList;
-import com.palantir.gradle.utils.exec.GradleExec;
+import java.io.ByteArrayOutputStream;
 import java.util.Set;
+import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.tooling.GradleConnector;
+import org.gradle.tooling.ProjectConnection;
 
 public abstract class ValidateConfigurationCacheTask extends DefaultTask {
 
     @Input
     public abstract SetProperty<String> getAllowedTasks();
 
-    @Nested
-    protected abstract GradleExec getExec();
+    @Inject
+    protected abstract ProjectLayout getProjectLayout();
 
     @TaskAction
     public final void validate() {
         Set<String> tasks = getAllowedTasks().get();
+
         if (tasks.isEmpty()) {
-            getLogger().lifecycle("No tasks to validate for configuration cache");
+            getLogger().lifecycle("No tasks to validate");
             return;
         }
 
-        getExec()
-                .exec(execSpec -> execSpec.commandLine(ImmutableList.builder()
-                        .add("./gradlew")
-                        .addAll(tasks.stream().sorted().toList())
-                        .add("--dry-run")
-                        .add("--configuration-cache")
-                        .build()))
-                .mapFailure(result -> new RuntimeException(
-                        "Configuration cacheable tasks from the allow list failed:" + result.stdErr()))
-                .get();
+        getLogger().lifecycle("Validating configuration cache for {} tasks", tasks.size());
+
+        GradleConnector connector = GradleConnector.newConnector()
+                .forProjectDirectory(getProjectLayout().getProjectDirectory().getAsFile());
+
+        try (ProjectConnection connection = connector.connect()) {
+            ByteArrayOutputStream errorStream = new ByteArrayOutputStream();
+
+            try {
+                connection
+                        .newBuild()
+                        .forTasks(tasks.toArray(new String[0]))
+                        .withArguments("--dry-run", "--configuration-cache")
+                        .setStandardError(errorStream)
+                        .run();
+
+                getLogger().lifecycle("All {} tasks passed configuration cache validation", tasks.size());
+
+            } catch (Exception e) {
+                throw new RuntimeException(
+                        "Configuration cache validation failed. See error output for details. \n" + errorStream);
+            }
+        }
     }
 }
