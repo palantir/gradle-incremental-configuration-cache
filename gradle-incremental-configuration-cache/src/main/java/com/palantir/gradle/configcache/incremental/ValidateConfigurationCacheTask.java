@@ -15,9 +15,8 @@
  */
 package com.palantir.gradle.configcache.incremental;
 
+import com.google.common.collect.ImmutableList;
 import com.palantir.gradle.utils.exec.GradleExec;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.provider.SetProperty;
@@ -41,14 +40,13 @@ public abstract class ValidateConfigurationCacheTask extends DefaultTask {
             return;
         }
 
-        List<String> commandLine = new ArrayList<>();
-        commandLine.add("./gradlew");
-        commandLine.addAll(tasks.stream().sorted().toList());
-        commandLine.add("--dry-run");
-        commandLine.add("--configuration-cache");
-
         getExec()
-                .exec(execSpec -> execSpec.commandLine(commandLine))
+                .exec(execSpec -> execSpec.commandLine(ImmutableList.builder()
+                        .add("./gradlew")
+                        .addAll(tasks.stream().sorted().toList())
+                        .add("--dry-run")
+                        .add("--configuration-cache")
+                        .build()))
                 .mapFailure(result -> new RuntimeException(
                         "Configuration cacheable tasks from the allow list failed:" + result.stdErr()))
                 .get();
