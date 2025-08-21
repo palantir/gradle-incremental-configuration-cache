@@ -47,17 +47,17 @@ public abstract class ValidateConfigurationCacheTask extends DefaultTask {
         Set<String> tasks = getAllowedTasks().get();
 
         if (tasks.isEmpty()) {
-            getLogger().lifecycle("No tasks to validate");
+            getLogger().info("No tasks to validate");
             return;
         }
 
-        getLogger().lifecycle("Validating configuration cache for {} tasks", tasks.size());
+        getLogger().info("Validating configuration cache for {} tasks", tasks.size());
 
         GradleConnector connector = GradleConnector.newConnector()
                 .forProjectDirectory(getProjectLayout().getProjectDirectory().getAsFile());
 
         try (ProjectConnection connection = connector.connect()) {
-            ByteArrayOutputStream errorStream = new ByteArrayOutputStream();
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
             ImmutableList.Builder<String> argumentsBuilder = ImmutableList.builder();
             argumentsBuilder.add("--dry-run", "--configuration-cache");
@@ -73,14 +73,15 @@ public abstract class ValidateConfigurationCacheTask extends DefaultTask {
                         .newBuild()
                         .forTasks(tasks.toArray(new String[0]))
                         .withArguments(argumentsBuilder.build())
-                        .setStandardError(errorStream)
+                        .setStandardOutput(outputStream)
+                        .setStandardError(outputStream)
                         .run();
 
-                getLogger().lifecycle("All {} tasks passed configuration cache validation", tasks.size());
+                getLogger().info("All {} tasks passed configuration cache validation", tasks.size());
 
             } catch (GradleConnectionException e) {
                 throw new RuntimeException(
-                        "Configuration cache validation failed. See error output for details. \n" + errorStream);
+                        "Configuration cache validation failed. See error output for details. \n" + outputStream);
             }
         }
     }

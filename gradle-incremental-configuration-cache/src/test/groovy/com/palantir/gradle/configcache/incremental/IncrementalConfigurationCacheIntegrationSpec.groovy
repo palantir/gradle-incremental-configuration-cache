@@ -21,7 +21,7 @@ import groovy.io.FileType
 import java.nio.file.Files
 
 
-class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
+class IncrementalConfigurationCacheIntegrationSpec extends ConfigurationCacheSpec {
     def setup() {
         // language=gradle
         buildFile << '''

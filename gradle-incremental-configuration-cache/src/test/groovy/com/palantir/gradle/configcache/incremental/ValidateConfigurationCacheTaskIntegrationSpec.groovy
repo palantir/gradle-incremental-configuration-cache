@@ -18,24 +18,23 @@ package com.palantir.gradle.configcache.incremental
 import com.palantir.gradle.plugintesting.ConfigurationCacheSpec
 import org.gradle.testkit.runner.TaskOutcome
 
-class ValidateConfigurationCacheTaskTest extends ConfigurationCacheSpec {
+class ValidateConfigurationCacheTaskIntegrationSpec extends ConfigurationCacheSpec {
 
     def setup() {
         // language=gradle
         buildFile << '''
-        apply plugin: 'com.palantir.incremental-configuration-cache'
-        apply plugin: 'java-library'
-        
-        tasks.named("validateConfigurationCacheAllowList") {
-            initScript.set(file(".gradle-test-kit/init.gradle").absolutePath)
-        }
-        
+            apply plugin: 'com.palantir.incremental-configuration-cache'
+            apply plugin: 'java-library'
+            
+            tasks.named('validateConfigurationCacheAllowList') {
+                initScript.set(file('.gradle-test-kit/init.gradle').absolutePath)
+            }
         '''.stripIndent(true)
     }
 
-    def "validates empty task list"() {
+    def 'validates empty task list'() {
         given:
-        file("gradle/configuration-cache-allowed-tasks") << ''
+        file('gradle/configuration-cache-allowed-tasks') << ''
 
         when:
         def result = runTasksWithConfigurationCache(true, false, 'validateConfigurationCacheAllowList')
@@ -45,11 +44,11 @@ class ValidateConfigurationCacheTaskTest extends ConfigurationCacheSpec {
         result.output.contains('No tasks to validate')
     }
 
-    def "validates compatible tasks successfully"() {
+    def 'validates compatible tasks successfully'() {
         given:
         // We must have validateConfigurationCacheAllowList in the allow list to allow
         // validateConfigurationCacheAllowList to run with configuration cache
-        file("gradle/configuration-cache-allowed-tasks") << '''
+        file('gradle/configuration-cache-allowed-tasks') << '''
             :compileJava
             :processResources
             :validateConfigurationCacheAllowList
@@ -64,9 +63,9 @@ class ValidateConfigurationCacheTaskTest extends ConfigurationCacheSpec {
         result.output.contains('All 3 tasks passed configuration cache validation')
     }
 
-    def "fails validation for incompatible tasks"() {
+    def 'fails validation for incompatible tasks'() {
         given:
-        file("gradle/configuration-cache-allowed-tasks") << '''
+        file('gradle/configuration-cache-allowed-tasks') << '''
             :problematicTask
             :validateConfigurationCacheAllowList
         '''.stripIndent(true)
@@ -85,9 +84,9 @@ class ValidateConfigurationCacheTaskTest extends ConfigurationCacheSpec {
         result.output.contains('Configuration cache validation failed')
     }
 
-    def "validation task is hooked into check task"() {
+    def 'validation task is hooked into check task'() {
         given:
-        file("gradle/configuration-cache-allowed-tasks") << ''
+        file('gradle/configuration-cache-allowed-tasks') << ''
         when:
         def result = runTasks('check', '--dry-run')
 
