@@ -25,6 +25,7 @@ import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.apache.commons.io.FileUtils;
 import org.gradle.api.Plugin;
@@ -72,14 +73,15 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         Set<String> enabledTasks = allowList.loadAllowedTasks();
 
         project.getGradle().getTaskGraph().whenReady(taskExecutionGraph -> {
-            Set<Task> allEnabledTasks = new HashSet<>();
-
-            // First pass: collect enabled tasks and dependencies
-            taskExecutionGraph.getAllTasks().stream()
+            // Collect initial enabled tasks
+            Set<Task> initialEnabledTasks = taskExecutionGraph.getAllTasks().stream()
                     .filter(task -> enabledTasks.contains(task.getName()) || enabledTasks.contains(task.getPath()))
-                    .forEach(task -> collectTaskWithDependencies(taskExecutionGraph, task, allEnabledTasks));
+                    .collect(Collectors.toSet());
 
-            // Second pass: mark incompatible tasks
+            // Get all enabled tasks including dependencies
+            Set<Task> allEnabledTasks = collectTasksWithDependencies(taskExecutionGraph, initialEnabledTasks);
+
+            // Mark incompatible tasks
             taskExecutionGraph.getAllTasks().stream()
                     .filter(task -> !allEnabledTasks.contains(task))
                     .forEach(task -> task.notCompatibleWithConfigurationCache(
@@ -90,9 +92,9 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         ensureReportsDirIsSymlinkedToCircleArtifacts();
     }
 
-    private void collectTaskWithDependencies(TaskExecutionGraph graph, Task task, Set<Task> collectedTasks) {
-        Queue<Task> toProcess = new ArrayDeque<>();
-        toProcess.offer(task);
+    private Set<Task> collectTasksWithDependencies(TaskExecutionGraph graph, Set<Task> initialTasks) {
+        Set<Task> collectedTasks = new HashSet<>();
+        Queue<Task> toProcess = new ArrayDeque<>(initialTasks);
 
         while (!toProcess.isEmpty()) {
             Task current = toProcess.poll();
@@ -100,6 +102,8 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                 graph.getDependencies(current).forEach(toProcess::offer);
             }
         }
+
+        return collectedTasks;
     }
 
     private void ensureReportsDirIsSymlinkedToCircleArtifacts() {
