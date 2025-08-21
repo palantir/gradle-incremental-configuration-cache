@@ -84,7 +84,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
             project.getTasks().named("check").configure(task -> task.dependsOn(validateAllowList));
         });
 
-//        ensureReportsDirIsSymlinkedToCircleArtifacts();
+        ensureReportsDirIsSymlinkedToCircleArtifacts();
     }
 
     private void ensureReportsDirIsSymlinkedToCircleArtifacts() {

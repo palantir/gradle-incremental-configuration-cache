@@ -56,7 +56,7 @@ class ValidateConfigurationCacheTaskTest extends ConfigurationCacheSpec {
         '''.stripIndent(true)
 
         when:
-        def result = runTasksWithConfigurationCacheAndCheck('validateConfigurationCacheAllowList')
+        def result = runTasksWithConfigurationCache('validateConfigurationCacheAllowList')
 
         then:
         result.task(':validateConfigurationCacheAllowList').outcome == TaskOutcome.SUCCESS
