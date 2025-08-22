@@ -20,8 +20,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public final class AllowListFile {
     private final Path path;
@@ -34,12 +33,11 @@ public final class AllowListFile {
         }
     }
 
-    public Set<String> loadAllowedTasks() {
+    public Stream<String> loadAllowedTasks() {
         try {
             return Files.readAllLines(path).stream()
                     .map(String::trim)
-                    .filter(line -> !line.isEmpty() && !line.startsWith("#"))
-                    .collect(Collectors.toSet());
+                    .filter(line -> !line.isEmpty() && !line.startsWith("#"));
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to read configuration cache allowed tasks file: " + path, e);
         }

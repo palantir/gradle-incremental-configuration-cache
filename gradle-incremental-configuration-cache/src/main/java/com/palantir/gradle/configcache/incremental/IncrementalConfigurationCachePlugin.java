@@ -23,15 +23,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.inject.Inject;
 import org.apache.commons.io.FileUtils;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
-import org.gradle.api.execution.TaskExecutionGraph;
 import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.tasks.Nested;
 import org.gradle.util.GradleVersion;
@@ -69,21 +70,19 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                     "Configuration cache allowed tasks file not found at %s".formatted(allowListPath));
         }
 
-        AllowListFile allowList = new AllowListFile(allowListPath);
-        Set<String> enabledTasks = allowList.loadAllowedTasks();
-
         project.getGradle().getTaskGraph().whenReady(taskExecutionGraph -> {
-            // Collect initial enabled tasks
-            Set<Task> initialEnabledTasks = taskExecutionGraph.getAllTasks().stream()
-                    .filter(task -> enabledTasks.contains(task.getName()) || enabledTasks.contains(task.getPath()))
+            // Get enabled tasks
+            Set<Task> enabledTasks = new AllowListFile(allowListPath)
+                    .loadAllowedTasks()
+                    .flatMap(taskName -> findTasksAcrossAllProjects(project, taskName))
                     .collect(Collectors.toSet());
 
-            // Get all enabled tasks including dependencies
-            Set<Task> allEnabledTasks = collectTasksWithDependencies(taskExecutionGraph, initialEnabledTasks);
+            // Get all the enabled tasks and there dependencies
+            Set<Task> enabledTasksAndDependencies = collectTasksWithDependencies(enabledTasks);
 
             // Mark incompatible tasks
             taskExecutionGraph.getAllTasks().stream()
-                    .filter(task -> !allEnabledTasks.contains(task))
+                    .filter(task -> !enabledTasksAndDependencies.contains(task))
                     .forEach(task -> task.notCompatibleWithConfigurationCache(
                             "Configuration cache is not enabled for this task, as it was not included in %s"
                                     .formatted(ALLOW_LIST_FILE)));
@@ -92,14 +91,26 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         ensureReportsDirIsSymlinkedToCircleArtifacts();
     }
 
-    private Set<Task> collectTasksWithDependencies(TaskExecutionGraph graph, Set<Task> initialTasks) {
+    private Stream<Task> findTasksAcrossAllProjects(Project project, String taskName) {
+        return project.getRootProject().getAllprojects().stream()
+                .map(proj -> {
+                    if (taskName.startsWith(":")) {
+                        return project.getRootProject().getTasks().findByPath(taskName);
+                    } else {
+                        return proj.getTasks().findByName(taskName);
+                    }
+                })
+                .filter(Objects::nonNull);
+    }
+
+    private Set<Task> collectTasksWithDependencies(Set<Task> initialTasks) {
         Set<Task> collectedTasks = new HashSet<>();
         Queue<Task> toProcess = new ArrayDeque<>(initialTasks);
 
         while (!toProcess.isEmpty()) {
             Task current = toProcess.poll();
             if (collectedTasks.add(current)) {
-                graph.getDependencies(current).forEach(toProcess::offer);
+                current.getTaskDependencies().getDependencies(current).forEach(toProcess::offer);
             }
         }
 

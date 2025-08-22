@@ -196,6 +196,66 @@ class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
         result2.output.contains('Configuration cache entry discarded because incompatible tasks were found')
     }
 
+    def 'discovers transitive dependencies for configuration cache'() {
+        given: 'a chain of task dependencies'
+        // language=gradle
+        buildFile << '''
+            tasks.register('level3Dependency'){
+                doLast {
+                    println "Level 3 dependency executed"
+                }
+            }
+            
+            tasks.register('level2Dependency'){
+                dependsOn level3Dependency
+                doLast {
+                    println "Level 2 dependency executed"
+                }
+            }
+            
+            tasks.register('level1Dependency'){
+                dependsOn level2Dependency
+                doLast {
+                    println "Level 1 dependency executed"
+                }
+            }
+            
+            tasks.register('mainTask'){
+                dependsOn level1Dependency
+                doLast {
+                    println "Main task executed"
+                }
+            }
+        '''.stripIndent(true)
+
+        and: 'allow list only contains the main task'
+            file('gradle/configuration-cache-allowed-tasks') << '''
+            mainTask
+        '''.stripIndent(true)
+
+        when: 'running the main task with configuration cache'
+        def result = runTasksWithConfigurationCacheAndCheck('mainTask')
+
+        then: 'configuration cache is enabled (meaning all transitive dependencies were discovered)'
+        result.output.contains('Configuration cache entry stored')
+
+        and: 'all tasks in the dependency chain executed'
+        result.output.contains('Level 3 dependency executed')
+        result.output.contains('Level 2 dependency executed')
+        result.output.contains('Level 1 dependency executed')
+        result.output.contains('Main task executed')
+
+        when: 'running a lower level task'
+        def result2 = runTasksWithConfigurationCacheAndCheck('level2Dependency')
+
+        then: 'configuration cache is enabled (meaning all transitive dependencies were discovered)'
+        result2.output.contains('Configuration cache entry stored')
+
+        and: 'all tasks in the dependency chain executed'
+        result2.output.contains('Level 3 dependency executed')
+        result2.output.contains('Level 2 dependency executed')
+    }
+
     def 'copies configuration cache reports to circle artifacts'() {
         file('gradle/configuration-cache-allowed-tasks') << ''
 
