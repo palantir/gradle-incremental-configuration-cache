@@ -74,7 +74,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
             // Get enabled tasks
             Set<Task> enabledTasks = new AllowListFile(allowListPath)
                     .loadAllowedTasks()
-                    .flatMap(taskName -> findTasksAcrossAllProjects(project, taskName))
+                    .flatMap(taskName -> findTasksAcrossAllProjects(project.getRootProject(), taskName))
                     .collect(Collectors.toSet());
 
             // Get all the enabled tasks and there dependencies
@@ -91,13 +91,13 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         ensureReportsDirIsSymlinkedToCircleArtifacts();
     }
 
-    private Stream<Task> findTasksAcrossAllProjects(Project project, String taskName) {
-        return project.getRootProject().getAllprojects().stream()
-                .map(proj -> {
+    private Stream<Task> findTasksAcrossAllProjects(Project rootProject, String taskName) {
+        return rootProject.getAllprojects().stream()
+                .map(project -> {
                     if (taskName.startsWith(":")) {
-                        return project.getRootProject().getTasks().findByPath(taskName);
+                        return rootProject.getTasks().findByPath(taskName);
                     } else {
-                        return proj.getTasks().findByName(taskName);
+                        return project.getTasks().findByName(taskName);
                     }
                 })
                 .filter(Objects::nonNull);
