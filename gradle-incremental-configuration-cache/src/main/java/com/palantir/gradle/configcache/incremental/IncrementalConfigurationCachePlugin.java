@@ -92,12 +92,12 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
     }
 
     private Stream<Task> findTasksAcrossAllProjects(Project rootProject, String taskName) {
-        if (!taskName.startsWith(":")) {
-            return Stream.of(rootProject.getTasks().findByName(taskName)).filter(Objects::nonNull);
+        if (taskName.startsWith(":")) {
+            return Stream.of(rootProject.getTasks().findByPath(taskName)).filter(Objects::nonNull);
         }
 
         return rootProject.getAllprojects().stream()
-                .map(project -> project.getTasks().findByPath(taskName))
+                .map(project -> project.getTasks().findByName(taskName))
                 .filter(Objects::nonNull);
     }
 
