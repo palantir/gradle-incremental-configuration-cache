@@ -76,10 +76,13 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
             }
         }));
 
-        TaskProvider<ValidateConfigurationCacheTask> validateAllowList = project.getTasks()
-                .register("validateConfigurationCacheAllowList", ValidateConfigurationCacheTask.class, task -> {
-                    task.getTasksToValidate().set(enabledTasks);
-                });
+        TaskProvider<DryRunConfigurationCacheAllowListTasks> validateAllowList = project.getTasks()
+                .register(
+                        "dryRunConfigurationCacheAllowListTasks",
+                        DryRunConfigurationCacheAllowListTasks.class,
+                        task -> {
+                            task.getTasksToValidate().set(enabledTasks);
+                        });
 
         project.getPluginManager().apply(LifecycleBasePlugin.class);
         project.getTasks().named("check").configure(task -> task.dependsOn(validateAllowList));

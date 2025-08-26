@@ -35,7 +35,7 @@ import org.gradle.tooling.GradleConnectionException;
 import org.gradle.tooling.GradleConnector;
 import org.gradle.tooling.ProjectConnection;
 
-public abstract class ValidateConfigurationCacheTask extends DefaultTask {
+public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask {
 
     @Input
     public abstract SetProperty<String> getTasksToValidate();

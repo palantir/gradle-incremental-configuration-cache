@@ -16,10 +16,9 @@
 package com.palantir.gradle.configcache.incremental
 
 import com.palantir.gradle.plugintesting.ConfigurationCacheSpec
-import groovy.io.FileType
 import org.gradle.testkit.runner.TaskOutcome
 
-class ValidateConfigurationCacheTaskIntegrationSpec extends ConfigurationCacheSpec {
+class DryRunConfigurationCacheAllowListTasksIntegrationSpec extends ConfigurationCacheSpec {
 
     def setup() {
         // language=gradle
@@ -27,7 +26,7 @@ class ValidateConfigurationCacheTaskIntegrationSpec extends ConfigurationCacheSp
             apply plugin: 'com.palantir.incremental-configuration-cache'
             apply plugin: 'java-library'
             
-            tasks.named('validateConfigurationCacheAllowList') {
+            tasks.named('dryRunConfigurationCacheAllowListTasks') {
                 initScript.set(file('.gradle-test-kit/init.gradle').absolutePath)
             }
         '''.stripIndent(true)
@@ -43,28 +42,28 @@ class ValidateConfigurationCacheTaskIntegrationSpec extends ConfigurationCacheSp
         file('gradle/configuration-cache-allowed-tasks') << ''
 
         when:
-        def result = runTasksWithConfigurationCache(true, false, 'validateConfigurationCacheAllowList', '--info')
+        def result = runTasksWithConfigurationCache(true, false, 'dryRunConfigurationCacheAllowListTasks', '--info')
 
         then:
-        result.task(':validateConfigurationCacheAllowList').outcome == TaskOutcome.SUCCESS
+        result.task(':dryRunConfigurationCacheAllowListTasks').outcome == TaskOutcome.SUCCESS
         result.output.contains('No tasks to validate')
     }
 
     def 'validates compatible tasks successfully'() {
         given:
-        // We must have validateConfigurationCacheAllowList in the allow list to allow
-        // validateConfigurationCacheAllowList to run with configuration cache
+        // We must have dryRunConfigurationCacheAllowListTasks in the allow list to allow
+        // dryRunConfigurationCacheAllowListTasks to run with configuration cache
         file('gradle/configuration-cache-allowed-tasks') << '''
             :compileJava
             :processResources
-            :validateConfigurationCacheAllowList
+            :dryRunConfigurationCacheAllowListTasks
         '''.stripIndent(true)
 
         when:
-        def result = runTasksWithConfigurationCache('validateConfigurationCacheAllowList', '--info')
+        def result = runTasksWithConfigurationCache('dryRunConfigurationCacheAllowListTasks', '--info')
 
         then:
-        result.task(':validateConfigurationCacheAllowList').outcome == TaskOutcome.SUCCESS
+        result.task(':dryRunConfigurationCacheAllowListTasks').outcome == TaskOutcome.SUCCESS
         result.output.contains('Validating that 3 tasks run with the configuration cache')
         result.output.contains('All 3 tasks passed configuration cache validation')
     }
@@ -73,7 +72,7 @@ class ValidateConfigurationCacheTaskIntegrationSpec extends ConfigurationCacheSp
         given:
         file('gradle/configuration-cache-allowed-tasks') << '''
             :problematicTask
-            :validateConfigurationCacheAllowList
+            :dryRunConfigurationCacheAllowListTasks
         '''.stripIndent(true)
 
         buildFile << '''
@@ -83,10 +82,10 @@ class ValidateConfigurationCacheTaskIntegrationSpec extends ConfigurationCacheSp
         '''.stripIndent(true)
 
         when:
-        def result = runTasksAndFail('validateConfigurationCacheAllowList')
+        def result = runTasksAndFail('dryRunConfigurationCacheAllowListTasks')
 
         then:
-        result.task(':validateConfigurationCacheAllowList').outcome == TaskOutcome.FAILED
+        result.task(':dryRunConfigurationCacheAllowListTasks').outcome == TaskOutcome.FAILED
         result.output.contains('Configuration cache validation failed')
     }
 
@@ -94,7 +93,7 @@ class ValidateConfigurationCacheTaskIntegrationSpec extends ConfigurationCacheSp
         given:
         file('gradle/configuration-cache-allowed-tasks') << '''
             :problematicTask
-            :validateConfigurationCacheAllowList
+            :dryRunConfigurationCacheAllowListTasks
         '''.stripIndent(true)
 
         buildFile << '''
@@ -104,13 +103,13 @@ class ValidateConfigurationCacheTaskIntegrationSpec extends ConfigurationCacheSp
         '''.stripIndent(true)
 
         when:
-        def result = runTasksAndFail('validateConfigurationCacheAllowList',
+        def result = runTasksAndFail('dryRunConfigurationCacheAllowListTasks',
                 '-P__TESTING_CIRCLECI=true',
                 '-P__TESTING_CIRCLE_ARTIFACTS=' + getProjectDir().toPath().resolve('circle-artifacts')
         )
 
         then:
-        result.task(':validateConfigurationCacheAllowList').outcome == TaskOutcome.FAILED
+        result.task(':dryRunConfigurationCacheAllowListTasks').outcome == TaskOutcome.FAILED
         result.output.contains('Configuration cache validation failed')
 
         def report = new File(projectDir, 'circle-artifacts/configuration-cache-validation-report/validation-report')
@@ -126,6 +125,6 @@ class ValidateConfigurationCacheTaskIntegrationSpec extends ConfigurationCacheSp
         def result = runTasks('check', '--dry-run')
 
         then:
-        result.output.contains(':validateConfigurationCacheAllowList')
+        result.output.contains(':dryRunConfigurationCacheAllowListTasks')
     }
 }
