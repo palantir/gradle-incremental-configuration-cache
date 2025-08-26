@@ -77,7 +77,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                     .flatMap(taskName -> findTasksAcrossAllProjects(project.getRootProject(), taskName))
                     .collect(Collectors.toSet());
 
-            // Get all the enabled tasks and there dependencies
+            // Get all the enabled tasks and their dependencies
             Set<Task> enabledTasksAndDependencies = collectTasksWithDependencies(enabledTasks);
 
             // Mark incompatible tasks
