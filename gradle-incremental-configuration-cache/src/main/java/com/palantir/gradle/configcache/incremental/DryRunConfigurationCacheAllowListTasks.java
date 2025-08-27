@@ -16,6 +16,8 @@
 package com.palantir.gradle.configcache.incremental;
 
 import com.google.common.collect.ImmutableList;
+import com.palantir.gradle.utils.circleciartifacts.ArtifactLocation;
+import com.palantir.gradle.utils.circleciartifacts.CircleCiArtifacts;
 import com.palantir.gradle.utils.environmentvariables.EnvironmentVariables;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -49,6 +51,9 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
 
     @Nested
     protected abstract EnvironmentVariables getEnvironmentVariables();
+
+    @Nested
+    protected abstract CircleCiArtifacts getCircleCiArtifacts();
 
     @TaskAction
     public final void validate() throws IOException {
@@ -105,7 +110,7 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
                 .isPresent();
 
         if (!isCircleCI) {
-            return "Configuration cache validation failed. See error output for details.\n" + outputStream;
+            return buildDetailedErrorMessage(outputStream.toString(), null);
         }
 
         return circleCiErrorMessage(outputStream);
@@ -113,26 +118,141 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
 
     private String circleCiErrorMessage(ByteArrayOutputStream outputStream) {
         try {
-            String artifactsDir = getEnvironmentVariables()
-                    .envVarOrFromTestingProperty("CIRCLE_ARTIFACTS")
-                    .orElse("/home/circleci/artifacts")
-                    .get();
+            String artifactPath = "configuration-cache-validation-report/validation-report.txt";
+            ArtifactLocation artifactLocation =
+                    getCircleCiArtifacts().resolveArtifactLocation(artifactPath).get();
 
-            Path reportDir = Path.of(artifactsDir, "configuration-cache-validation-report");
-            Files.createDirectories(reportDir);
-
-            Path reportFile = reportDir.resolve("validation-report");
+            Path reportFile = artifactLocation.physicalPath().getAsFile().toPath();
+            Files.createDirectories(reportFile.getParent());
             Files.write(reportFile, outputStream.toByteArray());
 
-            return String.format("Configuration cache validation failed. See report at %s for details.", reportFile);
+            return buildDetailedErrorMessage(outputStream.toString(), artifactLocation.externalLocation());
         } catch (IOException e) {
+            // Fall back to including output directly if we can't create the artifact
             return String.format(
                     """
-                    Configuration cache validation failed. See error output for details.
                     %s
-                    (Failed to save CircleCI artifact: %s )
+
+                    (Failed to save CircleCI artifact: %s)
                     """,
-                    outputStream, e.getMessage());
+                    buildDetailedErrorMessage(outputStream.toString(), null), e.getMessage());
         }
+    }
+
+    private String buildDetailedErrorMessage(String outputContent, String validationReportUrl) {
+        String configCacheReportPath = extractConfigCacheReportPath(outputContent);
+
+        // Get the proper artifact URL for the configuration cache report
+        String configCacheReportUrl = null;
+        if (configCacheReportPath != null && validationReportUrl != null) {
+            configCacheReportUrl = getConfigCacheReportArtifactUrl(configCacheReportPath);
+        }
+
+        // Build the reports section based on what's available
+        String reportsSection = getString(validationReportUrl, configCacheReportUrl, configCacheReportPath);
+
+        // Build the main message (shared between CI and local)
+        String mainMessage = String.format(
+                """
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            ❌ CONFIGURATION CACHE VALIDATION FAILED
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+            WHAT HAPPENED:
+              Failed to dry run tasks with configuration cache enabled.
+
+            %s
+
+            WHY THIS MATTERS:
+              These tasks are validated together with configuration cache fully
+              enabled to detect issues that only occur when all cacheable tasks
+              run. Regular CI builds may mask these issues when non-cacheable
+              tasks disable the configuration cache.
+
+            HOW TO FIX:
+
+              1. Review the%s for specific issues
+
+              2. Common fixes for configuration cache problems:
+                 • Project object in task → Use Provider/Property APIs
+                 • Non-serializable inputs → Mark @Internal or make serializable
+                 • System properties → Use providers.systemProperty()
+                 • Environment variables → Use providers.environmentVariable()
+                 • File operations at config → Wrap in providers or defer
+
+              3. If you upgraded a plugin, verify it supports configuration cache
+
+              📚 Gradle docs: https://docs.gradle.org/current/userguide/configuration_cache.html
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            """,
+                reportsSection,
+                configCacheReportUrl != null || configCacheReportPath != null
+                        ? " Gradle configuration cache report"
+                        : " output above");
+
+        // Add validation output for local development only
+        if (validationReportUrl == null && outputContent != null && !outputContent.isEmpty()) {
+            mainMessage += String.format(
+                    """
+
+                VALIDATION OUTPUT:
+                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                %s
+                """,
+                    outputContent);
+        }
+
+        return mainMessage;
+    }
+
+    private static String getString(
+            String validationReportUrl, String configCacheReportUrl, String configCacheReportPath) {
+        String reportsSection;
+        if (validationReportUrl != null) {
+            reportsSection = String.format(
+                    "  📋 Full output: %s%s",
+                    validationReportUrl,
+                    configCacheReportUrl != null ? "\n  📊 Config cache report: " + configCacheReportUrl : "");
+        } else if (configCacheReportPath != null) {
+            reportsSection = "  📊 Config cache report: file://" + configCacheReportPath;
+        } else {
+            reportsSection = "  See validation output below";
+        }
+        return reportsSection;
+    }
+
+    private String extractConfigCacheReportPath(String output) {
+        if (output == null) {
+            return null;
+        }
+
+        // Look for "See the complete report at file:///path/to/report.html"
+        String pattern = "See the complete report at file://";
+        int index = output.indexOf(pattern);
+
+        if (index != -1) {
+            int startIndex = index + pattern.length();
+            int endIndex = output.indexOf('\n', startIndex);
+            if (endIndex == -1) {
+                endIndex = output.length();
+            }
+            return output.substring(startIndex, endIndex).trim();
+        }
+
+        return null;
+    }
+
+    private String getConfigCacheReportArtifactUrl(String localReportPath) {
+        // Extract the relative path within configuration-cache directory
+        // e.g., from /path/to/build/reports/configuration-cache/abc123/def456/configuration-cache-report.html
+        // we want configuration-cache-reports/abc123/def456/configuration-cache-report.html
+        String[] pathParts = localReportPath.split("/configuration-cache/");
+        if (pathParts.length > 1) {
+            String artifactPath = "configuration-cache-reports/" + pathParts[1];
+            ArtifactLocation artifactLocation =
+                    getCircleCiArtifacts().resolveArtifactLocation(artifactPath).get();
+            return artifactLocation.externalLocation();
+        }
+        return null;
     }
 }

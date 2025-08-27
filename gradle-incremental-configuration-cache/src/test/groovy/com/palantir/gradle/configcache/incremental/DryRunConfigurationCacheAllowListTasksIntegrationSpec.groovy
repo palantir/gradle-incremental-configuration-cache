@@ -86,7 +86,7 @@ class DryRunConfigurationCacheAllowListTasksIntegrationSpec extends Configuratio
 
         then:
         result.task(':dryRunConfigurationCacheAllowListTasks').outcome == TaskOutcome.FAILED
-        result.output.contains('Configuration cache validation failed')
+        result.output.contains('CONFIGURATION CACHE VALIDATION FAILED')
     }
 
     def 'fails validation for incompatible tasks on CI creates report'() {
@@ -105,14 +105,18 @@ class DryRunConfigurationCacheAllowListTasksIntegrationSpec extends Configuratio
         when:
         def result = runTasksAndFail('dryRunConfigurationCacheAllowListTasks',
                 '-P__TESTING_CIRCLECI=true',
-                '-P__TESTING_CIRCLE_ARTIFACTS=' + getProjectDir().toPath().resolve('circle-artifacts')
+                '-P__TESTING_CIRCLE_ARTIFACTS=' + getProjectDir().toPath().resolve('circle-artifacts'),
+                '-P__TESTING_CIRCLE_PROJECT_USERNAME=test-username',
+                '-P__TESTING_CIRCLE_PROJECT_REPONAME=test-repo',
+                '-P__TESTING_CIRCLE_BUILD_NUM=123',
+                '-P__TESTING_CIRCLE_NODE_INDEX=0'
         )
 
         then:
         result.task(':dryRunConfigurationCacheAllowListTasks').outcome == TaskOutcome.FAILED
-        result.output.contains('Configuration cache validation failed')
+        result.output.contains('CONFIGURATION CACHE VALIDATION FAILED')
 
-        def report = new File(projectDir, 'circle-artifacts/configuration-cache-validation-report/validation-report')
+        def report = new File(projectDir, 'circle-artifacts/configuration-cache-validation-report/validation-report.txt')
         report.exists()
 
         report.text.contains("1 problem was found storing the configuration cache.")
