@@ -197,7 +197,6 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
         if (validationReportUrl.isEmpty() && outputContent != null && !outputContent.isEmpty()) {
             mainMessage += String.format(
                     """
-
                 VALIDATION OUTPUT:
                 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 %s
