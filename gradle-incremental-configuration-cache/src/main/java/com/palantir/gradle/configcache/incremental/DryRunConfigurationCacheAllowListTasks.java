@@ -56,7 +56,7 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
     protected abstract CircleCiArtifacts getCircleCiArtifacts();
 
     @TaskAction
-    public final void validate() throws IOException {
+    public final void validate() {
         Set<String> tasks = getTasksToValidate().get();
 
         if (tasks.isEmpty()) {
@@ -171,24 +171,22 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
 
             HOW TO FIX:
 
-              1. Review the%s for specific issues
+              1. Review the %s for specific issues
 
               2. Common fixes for configuration cache problems:
                  • Project object in task → Use Provider/Property APIs
-                 • Non-serializable inputs → Mark @Internal or make serializable
-                 • System properties → Use providers.systemProperty()
-                 • Environment variables → Use providers.environmentVariable()
-                 • File operations at config → Wrap in providers or defer
+                 • Exec Operations (project.exec) → use GradleExec from utils (https://github.com/palantir/gradle-utils?tab=readme-ov-file#gradleexec)
 
               3. If you upgraded a plugin, verify it supports configuration cache
 
+              📚 Gradle Guide: https://github.com/palantir/gradle-guide/blob/develop/guide/adopting-the-configuration-cache.md
               📚 Gradle docs: https://docs.gradle.org/current/userguide/configuration_cache.html
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             """,
                 reportsSection,
                 configCacheReportUrl != null || configCacheReportPath != null
-                        ? " Gradle configuration cache report"
-                        : " output above");
+                        ? "Gradle configuration cache report"
+                        : "output above");
 
         // Add validation output for local development only
         if (validationReportUrl == null && outputContent != null && !outputContent.isEmpty()) {
