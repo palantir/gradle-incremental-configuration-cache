@@ -179,8 +179,9 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
               1. Review the %s for specific issues
 
               2. Common fixes for configuration cache problems:
-                 • Project object in task → Use Provider/Property APIs
-                 • Exec Operations (project.exec) → use GradleExec from utils (https://github.com/palantir/gradle-utils?tab=readme-ov-file#gradleexec)
+                  • Task.project at execution → Inject services (ProjectLayout, FileSystemOperations)
+                  • External processes → Use ProviderFactory.exec() or GradleExec (https://github.com/palantir/gradle-utils?tab=readme-ov-file#gradleexec)
+                  • Cannot serialize Gradle model types → Don't pass in full object use Property<T> for specific values or inject services
 
               3. If you upgraded a plugin, verify it supports configuration cache
 
