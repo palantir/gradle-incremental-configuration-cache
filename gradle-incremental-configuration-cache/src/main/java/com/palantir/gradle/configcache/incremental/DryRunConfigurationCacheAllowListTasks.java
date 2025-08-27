@@ -15,14 +15,18 @@
  */
 package com.palantir.gradle.configcache.incremental;
 
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.palantir.gradle.utils.circleciartifacts.ArtifactLocation;
 import com.palantir.gradle.utils.circleciartifacts.CircleCiArtifacts;
 import com.palantir.gradle.utils.environmentvariables.EnvironmentVariables;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
@@ -31,7 +35,6 @@ import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.Nested;
-import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.tooling.GradleConnectionException;
 import org.gradle.tooling.GradleConnector;
@@ -43,7 +46,7 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
     public abstract SetProperty<String> getTasksToValidate();
 
     @Input
-    @Optional
+    @org.gradle.api.tasks.Optional
     public abstract Property<String> getInitScript();
 
     @Inject
@@ -110,7 +113,7 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
                 .isPresent();
 
         if (!isCircleCI) {
-            return buildDetailedErrorMessage(outputStream.toString(), null);
+            return buildDetailedErrorMessage(outputStream.toString(StandardCharsets.UTF_8), Optional.empty());
         }
 
         return circleCiErrorMessage(outputStream);
@@ -126,7 +129,8 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
             Files.createDirectories(reportFile.getParent());
             Files.write(reportFile, outputStream.toByteArray());
 
-            return buildDetailedErrorMessage(outputStream.toString(), artifactLocation.externalLocation());
+            return buildDetailedErrorMessage(
+                    outputStream.toString(StandardCharsets.UTF_8), Optional.of(artifactLocation.externalLocation()));
         } catch (IOException e) {
             // Fall back to including output directly if we can't create the artifact
             return String.format(
@@ -135,17 +139,18 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
 
                     (Failed to save CircleCI artifact: %s)
                     """,
-                    buildDetailedErrorMessage(outputStream.toString(), null), e.getMessage());
+                    buildDetailedErrorMessage(outputStream.toString(StandardCharsets.UTF_8), Optional.empty()),
+                    e.getMessage());
         }
     }
 
-    private String buildDetailedErrorMessage(String outputContent, String validationReportUrl) {
-        String configCacheReportPath = extractConfigCacheReportPath(outputContent);
+    private String buildDetailedErrorMessage(String outputContent, Optional<String> validationReportUrl) {
+        Optional<String> configCacheReportPath = extractConfigCacheReportPath(outputContent);
 
         // Get the proper artifact URL for the configuration cache report
-        String configCacheReportUrl = null;
-        if (configCacheReportPath != null && validationReportUrl != null) {
-            configCacheReportUrl = getConfigCacheReportArtifactUrl(configCacheReportPath);
+        Optional<String> configCacheReportUrl = Optional.empty();
+        if (configCacheReportPath.isPresent() && validationReportUrl.isPresent()) {
+            configCacheReportUrl = getConfigCacheReportArtifactUrl(configCacheReportPath.get());
         }
 
         // Build the reports section based on what's available
@@ -184,12 +189,12 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             """,
                 reportsSection,
-                configCacheReportUrl != null || configCacheReportPath != null
+                configCacheReportUrl.isPresent() || configCacheReportPath.isPresent()
                         ? "Gradle configuration cache report"
                         : "output above");
 
         // Add validation output for local development only
-        if (validationReportUrl == null && outputContent != null && !outputContent.isEmpty()) {
+        if (validationReportUrl.isEmpty() && outputContent != null && !outputContent.isEmpty()) {
             mainMessage += String.format(
                     """
 
@@ -204,24 +209,25 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
     }
 
     private static String getString(
-            String validationReportUrl, String configCacheReportUrl, String configCacheReportPath) {
-        String reportsSection;
-        if (validationReportUrl != null) {
-            reportsSection = String.format(
-                    "  📋 Full output: %s%s",
-                    validationReportUrl,
-                    configCacheReportUrl != null ? "\n  📊 Config cache report: " + configCacheReportUrl : "");
-        } else if (configCacheReportPath != null) {
-            reportsSection = "  📊 Config cache report: file://" + configCacheReportPath;
-        } else {
-            reportsSection = "  See validation output below";
-        }
-        return reportsSection;
+            Optional<String> validationReportUrl,
+            Optional<String> configCacheReportUrl,
+            Optional<String> configCacheReportPath) {
+
+        return validationReportUrl
+                .map(s -> String.format(
+                        "  📋 Full output: %s%s",
+                        s,
+                        configCacheReportUrl
+                                .map(url -> "\n  📊 Config cache report: " + url)
+                                .orElse("")))
+                .orElseGet(() -> configCacheReportPath
+                        .map(s -> "  📊 Config cache report: file://" + s)
+                        .orElse("  See validation output below"));
     }
 
-    private String extractConfigCacheReportPath(String output) {
+    private Optional<String> extractConfigCacheReportPath(String output) {
         if (output == null) {
-            return null;
+            return Optional.empty();
         }
 
         // Look for "See the complete report at file:///path/to/report.html"
@@ -234,23 +240,23 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
             if (endIndex == -1) {
                 endIndex = output.length();
             }
-            return output.substring(startIndex, endIndex).trim();
+            return Optional.of(output.substring(startIndex, endIndex).trim());
         }
 
-        return null;
+        return Optional.empty();
     }
 
-    private String getConfigCacheReportArtifactUrl(String localReportPath) {
+    private Optional<String> getConfigCacheReportArtifactUrl(String localReportPath) {
         // Extract the relative path within configuration-cache directory
         // e.g., from /path/to/build/reports/configuration-cache/abc123/def456/configuration-cache-report.html
         // we want configuration-cache-reports/abc123/def456/configuration-cache-report.html
-        String[] pathParts = localReportPath.split("/configuration-cache/");
-        if (pathParts.length > 1) {
-            String artifactPath = "configuration-cache-reports/" + pathParts[1];
+        List<String> pathParts = Splitter.on("/configuration-cache/").splitToList(localReportPath);
+        if (pathParts.size() > 1) {
+            String artifactPath = "configuration-cache-reports/" + pathParts.get(1);
             ArtifactLocation artifactLocation =
                     getCircleCiArtifacts().resolveArtifactLocation(artifactPath).get();
-            return artifactLocation.externalLocation();
+            return Optional.of(artifactLocation.externalLocation());
         }
-        return null;
+        return Optional.empty();
     }
 }
