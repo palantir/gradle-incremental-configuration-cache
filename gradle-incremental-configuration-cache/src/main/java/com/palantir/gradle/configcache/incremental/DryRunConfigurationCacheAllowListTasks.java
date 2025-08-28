@@ -130,7 +130,7 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
             Files.write(reportFile, outputStream.toByteArray());
 
             return buildDetailedErrorMessage(
-                    outputStream.toString(StandardCharsets.UTF_8), Optional.of(artifactLocation.externalLocation()));
+                    outputStream.toString(StandardCharsets.UTF_8), Optional.of(artifactLocation.circleLink()));
         } catch (IOException e) {
             // Fall back to including output directly if we can't create the artifact
             return String.format(
@@ -255,7 +255,7 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
             String artifactPath = "configuration-cache-reports/" + pathParts.get(1);
             ArtifactLocation artifactLocation =
                     getCircleCiArtifacts().resolveArtifactLocation(artifactPath).get();
-            return Optional.of(artifactLocation.externalLocation());
+            return Optional.of(artifactLocation.circleLink());
         }
         return Optional.empty();
     }
