@@ -144,17 +144,18 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
         }
     }
 
+    @SuppressWarnings("checkstyle:LineLength")
     private String buildDetailedErrorMessage(String outputContent, Optional<String> validationReportUrl) {
         Optional<String> configCacheReportPath = extractConfigCacheReportPath(outputContent);
 
         // Get the proper artifact URL for the configuration cache report
         Optional<String> configCacheReportUrl = Optional.empty();
         if (configCacheReportPath.isPresent() && validationReportUrl.isPresent()) {
-            configCacheReportUrl = getConfigCacheReportArtifactUrl(configCacheReportPath.get());
+            configCacheReportUrl = configCacheReportArtifactUrl(configCacheReportPath.get());
         }
 
         // Build the reports section based on what's available
-        String reportsSection = getString(validationReportUrl, configCacheReportUrl, configCacheReportPath);
+        String reportsSection = reportsSection(validationReportUrl, configCacheReportUrl, configCacheReportPath);
 
         // Build the main message (shared between CI and local)
         String mainMessage = String.format(
@@ -196,19 +197,19 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
 
         // Add validation output for local development only
         if (validationReportUrl.isEmpty() && outputContent != null && !outputContent.isEmpty()) {
-            mainMessage += String.format(
+            mainMessage +=
                     """
-                VALIDATION OUTPUT:
+                VALIDATION OUTPUT: to see full output above re-run with --info
                 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                %s
-                """,
-                    outputContent);
+                """;
+            // the outputContent can be very large and annoying to scroll past so only show when running with info
+            getLogger().info(outputContent);
         }
 
         return mainMessage;
     }
 
-    private static String getString(
+    private static String reportsSection(
             Optional<String> validationReportUrl,
             Optional<String> configCacheReportUrl,
             Optional<String> configCacheReportPath) {
@@ -218,10 +219,10 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
                         "  📋 Full output: %s%s",
                         s,
                         configCacheReportUrl
-                                .map(url -> "\n  📊 Config cache report: " + url)
+                                .map(url -> "\n  📊  Config cache report: " + url)
                                 .orElse("")))
                 .orElseGet(() -> configCacheReportPath
-                        .map(s -> "  📊 Config cache report: file://" + s)
+                        .map(s -> "  📊  Config cache report: file://" + s)
                         .orElse("  See validation output below"));
     }
 
@@ -246,7 +247,7 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
         return Optional.empty();
     }
 
-    private Optional<String> getConfigCacheReportArtifactUrl(String localReportPath) {
+    private Optional<String> configCacheReportArtifactUrl(String localReportPath) {
         // Extract the relative path within configuration-cache directory
         // e.g., from /path/to/build/reports/configuration-cache/abc123/def456/configuration-cache-report.html
         // we want configuration-cache-reports/abc123/def456/configuration-cache-report.html
