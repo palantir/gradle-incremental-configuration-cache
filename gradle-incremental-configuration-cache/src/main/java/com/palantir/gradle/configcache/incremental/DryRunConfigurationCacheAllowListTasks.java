@@ -175,7 +175,7 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
               run. Regular CI builds may mask these issues when non-cacheable
               tasks disable the configuration cache.
 
-            HOW TO FIX:
+            HOW TO FIX (only if you have introduced a task, or upgraded a plugin):
 
               1. Review the %s for specific issues
 
@@ -223,7 +223,7 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
                                 .orElse("")))
                 .orElseGet(() -> configCacheReportPath
                         .map(s -> "  📊  Config cache report: file://" + s)
-                        .orElse("  See validation output below"));
+                        .orElse("  To see full output above re-run with --info"));
     }
 
     private Optional<String> extractConfigCacheReportPath(String output) {
