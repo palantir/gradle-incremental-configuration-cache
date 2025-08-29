@@ -23,9 +23,7 @@ import java.nio.file.Path;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public final class AllowListFile {
-    private final Path path;
-
+public record AllowListFile(Path path) {
     public AllowListFile(Path path) {
         this.path = path;
 

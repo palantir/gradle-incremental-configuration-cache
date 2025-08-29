@@ -38,6 +38,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
     private static final Logger log = LoggerFactory.getLogger(IncrementalConfigurationCachePlugin.class);
 
     private static final Path ALLOW_LIST_FILE = Path.of("gradle/configuration-cache-allowed-tasks");
+    private static final Path ALLOW_LIST_LOCK_FILE = Path.of("gradle/configuration-cache-allowed-tasks.lock");
     private static final GradleVersion MIN_GRADLE_VERSION = GradleVersion.version("8.12.0");
 
     @Inject
@@ -65,8 +66,15 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                     "Configuration cache allowed tasks file not found at %s".formatted(allowListPath));
         }
 
-        AllowListFile allowList = new AllowListFile(allowListPath);
-        Set<String> enabledTasks = allowList.loadAllowedTasks();
+        Path allowListLockPath =
+                project.getRootProject().getProjectDir().toPath().resolve(ALLOW_LIST_LOCK_FILE);
+        if (!Files.exists(allowListLockPath)) {
+            throw new RuntimeException(
+                    "Configuration cache allowed tasks lock file not found at %s".formatted(allowListLockPath));
+        }
+
+        AllowListFile allowListLock = new AllowListFile(allowListLockPath);
+        Set<String> enabledTasks = allowListLock.loadAllowedTasks();
 
         project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
             if (!enabledTasks.contains(task.getPath())) {
@@ -80,6 +88,13 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                 .register("dryRunConfigurationCacheAllowList", DryRunConfigurationCacheAllowListTask.class, task -> {
                     task.getTasksToValidate().set(enabledTasks);
                 });
+        project.getTasks()
+                .register("writeConfigurationCacheAllowList", DryRunConfigurationCacheAllowListTasks.class, task -> {
+                    task.getAllowList().set(new AllowListFile(allowListPath));
+                    task.getAllowListLock().set(allowListLock);
+                    task.getWriteLocks().set(true);
+                });
+
 
         project.getPluginManager().apply(LifecycleBasePlugin.class);
         project.getTasks().named("check").configure(task -> task.dependsOn(validateAllowList));

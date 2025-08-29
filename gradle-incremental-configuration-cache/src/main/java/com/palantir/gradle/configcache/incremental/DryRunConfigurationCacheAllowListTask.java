@@ -25,14 +25,18 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.UncheckedIOException;
 import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.provider.Property;
-import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.TaskAction;
@@ -43,11 +47,17 @@ import org.gradle.tooling.ProjectConnection;
 public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask {
 
     @Input
-    public abstract SetProperty<String> getTasksToValidate();
+    public abstract Property<AllowListFile> getAllowList();
+
+    @Input
+    public abstract Property<AllowListFile> getAllowListLock();
 
     @Input
     @org.gradle.api.tasks.Optional
     public abstract Property<String> getInitScript();
+
+    @Input
+    public abstract Property<Boolean> getWriteLocks();
 
     @Inject
     protected abstract ProjectLayout getProjectLayout();
@@ -60,14 +70,14 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask 
 
     @TaskAction
     public final void validate() {
-        Set<String> tasks = getTasksToValidate().get();
+        Set<String> allowListTasks = getAllowList().get().loadAllowedTasks();
 
-        if (tasks.isEmpty()) {
+        if (allowListTasks.isEmpty()) {
             getLogger().info("No tasks to validate");
             return;
         }
 
-        getLogger().info("Validating that {} tasks run with the configuration cache", tasks.size());
+        getLogger().info("Validating that {} tasks run with the configuration cache", allowListTasks.size());
 
         GradleConnector connector = GradleConnector.newConnector()
                 .forProjectDirectory(getProjectLayout().getProjectDirectory().getAsFile());
@@ -79,17 +89,38 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask 
             try {
                 connection
                         .newBuild()
-                        .forTasks(tasks.toArray(new String[0]))
+                        .forTasks(allowListTasks.toArray(new String[0]))
                         .withArguments(arguments)
                         .setStandardOutput(outputStream)
                         .setStandardError(outputStream)
                         .run();
 
-                getLogger().info("All {} tasks passed configuration cache validation", tasks.size());
+                getLogger().info("All {} tasks passed configuration cache validation", allowListTasks.size());
+
+                String output = outputStream.toString(StandardCharsets.UTF_8);
+                Set<String> dryRanTasks = Pattern.compile("(:[\\w:-]+)\\s+SKIPPED")
+                        .matcher(output)
+                        .results()
+                        .map(m -> m.group(1)) // Now includes the colon
+                        .collect(Collectors.toSet());
+
+                if (getWriteLocks().get()) {
+                    Files.write(getAllowListLock().get().path(), dryRanTasks, StandardCharsets.UTF_8,
+                        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                    return;
+                }
+
+                if (!getAllowListLock().get().loadAllowedTasks().equals(dryRanTasks)) {
+                    Set<String> lockFileTasks = getAllowListLock().get().loadAllowedTasks();
+                    String diffMessage = buildLockFileDiffMessage(lockFileTasks, dryRanTasks);
+                    throw new RuntimeException(diffMessage);
+                }
 
             } catch (GradleConnectionException e) {
                 String message = errorMessage(outputStream);
                 throw new RuntimeException(message);
+            } catch (IOException e) {
+                throw new UncheckedIOException("Failed to write configuration cache lock file", e);
             }
         }
     }
@@ -105,6 +136,43 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask 
         }
 
         return argumentsBuilder.build();
+    }
+
+    private String buildLockFileDiffMessage(Set<String> lockFileTasks, Set<String> dryRanTasks) {
+        // Find differences
+        Set<String> inLockNotInDryRun = new HashSet<>(lockFileTasks);
+        inLockNotInDryRun.removeAll(dryRanTasks);
+
+        Set<String> inDryRunNotInLock = new HashSet<>(dryRanTasks);
+        inDryRunNotInLock.removeAll(lockFileTasks);
+
+        StringBuilder diffMessage = new StringBuilder();
+        diffMessage.append(
+                "Lock file does not match ran tasks. Please run writeConfigurationCacheAllowList to regenerate the lock file.\n\n");
+
+        if (!inLockNotInDryRun.isEmpty()) {
+            diffMessage.append("Tasks in lock file but NOT executed (may have been removed or renamed):\n");
+            inLockNotInDryRun.stream()
+                    .sorted()
+                    .forEach(task -> diffMessage.append("  - ").append(task).append("\n"));
+            diffMessage.append("\n");
+        }
+
+        if (!inDryRunNotInLock.isEmpty()) {
+            diffMessage.append("Tasks executed but NOT in lock file (new tasks that are config cache compatible):\n");
+            inDryRunNotInLock.stream()
+                    .sorted()
+                    .forEach(task -> diffMessage.append("  + ").append(task).append("\n"));
+            diffMessage.append("\n");
+        }
+
+        diffMessage
+                .append("Total tasks in lock file: ")
+                .append(lockFileTasks.size())
+                .append("\n");
+        diffMessage.append("Total tasks executed: ").append(dryRanTasks.size());
+
+        return diffMessage.toString();
     }
 
     private String errorMessage(ByteArrayOutputStream outputStream) {

@@ -27,6 +27,10 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
             apply plugin: 'java-library'
             
             tasks.named('dryRunConfigurationCacheAllowList') {
+            tasks.named('dryRunConfigurationCacheAllowList') {
+                initScript.set(file('.gradle-test-kit/init.gradle').absolutePath)
+            }
+            tasks.named('writeConfigurationCacheAllowList') {
                 initScript.set(file('.gradle-test-kit/init.gradle').absolutePath)
             }
         '''.stripIndent(true)
@@ -40,6 +44,7 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
     def 'validates empty task list'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << ''
+        file('gradle/configuration-cache-allowed-tasks.lock') << ''
 
         when:
         def result = runTasksWithConfigurationCache(true, false, 'dryRunConfigurationCacheAllowList', '--info')
@@ -57,6 +62,17 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
             :compileJava
             :processResources
             :dryRunConfigurationCacheAllowList
+            :classes
+            :jar
+            :dryRunConfigurationCacheAllowList
+        '''.stripIndent(true)
+
+        // Lock file has different set of tasks
+        file('gradle/configuration-cache-allowed-tasks.lock') << '''
+            :compileJava
+            :compileTestJava
+            :test
+            :dryRunConfigurationCacheAllowList
         '''.stripIndent(true)
 
         when:
@@ -70,6 +86,7 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
 
     def 'fails validation for incompatible tasks'() {
         given:
+        file('gradle/configuration-cache-allowed-tasks.lock') << ''
         file('gradle/configuration-cache-allowed-tasks') << '''
             :problematicTask
             :dryRunConfigurationCacheAllowList
@@ -91,6 +108,7 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
 
     def 'fails validation for incompatible tasks on CI creates report'() {
         given:
+        file('gradle/configuration-cache-allowed-tasks.lock') << ''
         file('gradle/configuration-cache-allowed-tasks') << '''
             :problematicTask
             :dryRunConfigurationCacheAllowList
@@ -126,6 +144,7 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
     def 'validation task is hooked into check task'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << ''
+        file('gradle/configuration-cache-allowed-tasks.lock') << ''
         when:
         def result = runTasks('check', '--dry-run')
 

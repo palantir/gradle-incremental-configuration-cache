@@ -33,6 +33,8 @@ class IncrementalConfigurationCacheIntegrationSpec extends ConfigurationCacheSpe
         file('gradle.properties') << '''
             __TESTING=true
         '''.stripIndent(true)
+
+        file("gradle/configuration-cache-allowed-tasks") << ''
     }
 
     def "blows up if allow list file does not exist"() {
@@ -50,7 +52,7 @@ class IncrementalConfigurationCacheIntegrationSpec extends ConfigurationCacheSpe
             apply plugin: 'java-library'
         '''.stripIndent(true)
 
-        file("gradle/configuration-cache-allowed-tasks") << '''
+        file("gradle/configuration-cache-allowed-tasks.lock") << '''
             :compileJava
             :processResources
             :classes
@@ -71,7 +73,7 @@ class IncrementalConfigurationCacheIntegrationSpec extends ConfigurationCacheSpe
 
 
     def "tasks in allow list run with config cache"() {
-        file("gradle/configuration-cache-allowed-tasks") << '''
+        file("gradle/configuration-cache-allowed-tasks.lock") << '''
             :compileJava
             :processResources
             :classes
@@ -82,7 +84,7 @@ class IncrementalConfigurationCacheIntegrationSpec extends ConfigurationCacheSpe
     }
 
     def "tasks not in allow list don't run with config cache"() {
-        file("gradle/configuration-cache-allowed-tasks") << '''
+        file("gradle/configuration-cache-allowed-tasks.lock") << '''
             :compileJava
             :processResources
         '''.stripIndent(true)
@@ -96,7 +98,7 @@ class IncrementalConfigurationCacheIntegrationSpec extends ConfigurationCacheSpe
     }
 
     def 'blows up if gradleVersion lower than 8.12.0'() {
-        file("gradle/configuration-cache-allowed-tasks") << ''
+        file("gradle/configuration-cache-allowed-tasks.lock") << ''
 
         given:
         def runner = createRunner('--info').withGradleVersion(gradleVersion)
@@ -113,7 +115,7 @@ class IncrementalConfigurationCacheIntegrationSpec extends ConfigurationCacheSpe
     }
 
     def "does not blow if if gradleVersion is at least 8.12.0"() {
-        file("gradle/configuration-cache-allowed-tasks") << ''
+        file("gradle/configuration-cache-allowed-tasks.lock") << ''
 
         given:
         def runner = createRunner('--info').withGradleVersion(gradleVersion)
@@ -126,7 +128,7 @@ class IncrementalConfigurationCacheIntegrationSpec extends ConfigurationCacheSpe
     }
 
     def 'copies configuration cache reports to circle artifacts'() {
-        file('gradle/configuration-cache-allowed-tasks') << ''
+        file('gradle/configuration-cache-allowed-tasks.lock') << ''
 
         // language=Gradle
         buildFile << '''
@@ -156,7 +158,7 @@ class IncrementalConfigurationCacheIntegrationSpec extends ConfigurationCacheSpe
     }
 
     def 'outputs configuration cache reports to normal location when running locally'() {
-        file('gradle/configuration-cache-allowed-tasks') << ''
+        file('gradle/configuration-cache-allowed-tasks.lock') << ''
 
         // language=Gradle
         buildFile << '''
@@ -184,7 +186,7 @@ class IncrementalConfigurationCacheIntegrationSpec extends ConfigurationCacheSpe
     def 'does not blow up if reports directory is a broken symlink'() {
         given: 'the build is configured to run on circle'
 
-        file('gradle/configuration-cache-allowed-tasks') << ''
+        file('gradle/configuration-cache-allowed-tasks.lock') << ''
 
         // language=Gradle
         buildFile << '''
@@ -225,7 +227,7 @@ class IncrementalConfigurationCacheIntegrationSpec extends ConfigurationCacheSpe
 
     def 'replaces non-empty directory with symlink'() {
         given: 'the build is configured to run on circle'
-        file('gradle/configuration-cache-allowed-tasks') << ''
+        file('gradle/configuration-cache-allowed-tasks.lock') << ''
 
         // language=Gradle
         buildFile << '''
@@ -263,7 +265,7 @@ class IncrementalConfigurationCacheIntegrationSpec extends ConfigurationCacheSpe
 
     def 'preserves existing reports in artifacts directory on subsequent runs'() {
         given: 'the build is configured to run on circle'
-        file('gradle/configuration-cache-allowed-tasks') << ''
+        file('gradle/configuration-cache-allowed-tasks.lock') << ''
 
         // language=Gradle
         buildFile << '''
