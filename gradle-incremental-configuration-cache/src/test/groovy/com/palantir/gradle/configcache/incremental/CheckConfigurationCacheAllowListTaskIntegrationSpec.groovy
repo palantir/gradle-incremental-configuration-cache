@@ -82,7 +82,7 @@ class CheckConfigurationCacheAllowListTaskIntegrationSpec extends ConfigurationC
         def result = runTasks('checkConfigurationCacheAllowList', '--fix')
 
         then:
-        result.task(':checkConfigurationCacheAllowList').outcome == TaskOutcome.SUCCESS
+        result.tasks(TaskOutcome.SUCCESS)*.path.contains(':checkConfigurationCacheAllowList')
         file('gradle/configuration-cache-allowed-tasks.lock').text.trim() == tasks.trim()
     }
 
@@ -108,7 +108,7 @@ class CheckConfigurationCacheAllowListTaskIntegrationSpec extends ConfigurationC
         def result = runTasksAndFail('checkConfigurationCacheAllowList')
 
         then:
-        result.task(':checkConfigurationCacheAllowList').outcome == TaskOutcome.FAILED
+        result.tasks(TaskOutcome.FAILED)*.path.contains(':checkConfigurationCacheAllowList')
         result.output.contains('Lock file does not match the tasks that would run')
         result.output.contains('Total tasks in lock file: 4')
         result.output.contains('Total tasks that would execute: 5')
