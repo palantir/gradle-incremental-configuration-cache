@@ -21,6 +21,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 public record AllowListFile(Path path) {
@@ -37,7 +38,7 @@ public record AllowListFile(Path path) {
             return Files.readAllLines(path).stream()
                     .map(String::trim)
                     .filter(line -> !line.isEmpty() && !line.startsWith("#"))
-                    .collect(Collectors.toSet());
+                    .collect(Collectors.toCollection(TreeSet::new));
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to read configuration cache allowed tasks file: " + path, e);
         }

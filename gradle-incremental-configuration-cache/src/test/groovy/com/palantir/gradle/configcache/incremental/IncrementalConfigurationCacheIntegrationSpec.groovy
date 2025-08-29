@@ -38,6 +38,10 @@ class IncrementalConfigurationCacheIntegrationSpec extends ConfigurationCacheSpe
     }
 
     def "blows up if allow list file does not exist"() {
+        given:
+        // Remove the allow list file created in setup
+        file("gradle/configuration-cache-allowed-tasks").delete()
+        
         when:
         def buildResult = createRunner('classes', '--configuration-cache').buildAndFail()
         def output = buildResult.output

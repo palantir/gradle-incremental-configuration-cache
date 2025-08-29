@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
@@ -102,7 +103,7 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask 
                         .matcher(output)
                         .results()
                         .map(m -> m.group(1)) // Now includes the colon
-                        .collect(Collectors.toSet());
+                        .collect(Collectors.toCollection(TreeSet::new));
 
                 if (getWriteLocks().get()) {
                     Files.write(getAllowListLock().get().path(), dryRanTasks, StandardCharsets.UTF_8,
