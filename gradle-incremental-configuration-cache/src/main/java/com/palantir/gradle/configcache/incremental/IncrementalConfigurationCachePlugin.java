@@ -79,20 +79,21 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
             }
         }));
 
-        TaskProvider<DryRunConfigurationCacheAllowListTask> validateAllowList = project.getTasks()
+        TaskProvider<DryRunConfigurationCacheAllowListTask> dryRunAllowList = project.getTasks()
                 .register("dryRunConfigurationCacheAllowList", DryRunConfigurationCacheAllowListTask.class, task -> {
-                    task.getTasksToValidate().set(enabledTasks);
+                    task.getAllowList().set(new AllowListFile(allowListPath));
                 });
-        project.getTasks()
-                .register("writeConfigurationCacheAllowList", DryRunConfigurationCacheAllowListTasks.class, task -> {
+
+        TaskProvider<CheckConfigurationCacheAllowListTask> checkAllowList = project.getTasks()
+                .register("checkConfigurationCacheAllowList", CheckConfigurationCacheAllowListTask.class, task -> {
                     task.getAllowList().set(new AllowListFile(allowListPath));
                     task.getAllowListLock().set(allowListLock);
-                    task.getWriteLocks().set(true);
+                    task.getShouldFix().set(false);
                 });
 
-
         project.getPluginManager().apply(LifecycleBasePlugin.class);
-        project.getTasks().named("check").configure(task -> task.dependsOn(validateAllowList));
+        project.getTasks().named("check").configure(task -> task.dependsOn(dryRunAllowList));
+        project.getTasks().named("check").configure(task -> task.dependsOn(checkAllowList));
 
         ensureReportsDirIsSymlinkedToCircleArtifacts();
     }

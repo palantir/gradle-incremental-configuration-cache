@@ -20,48 +20,16 @@ import com.google.common.collect.ImmutableList;
 import com.palantir.gradle.utils.circleciartifacts.ArtifactLocation;
 import com.palantir.gradle.utils.circleciartifacts.CircleCiArtifacts;
 import com.palantir.gradle.utils.environmentvariables.EnvironmentVariables;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeSet;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import javax.inject.Inject;
-import org.gradle.api.DefaultTask;
-import org.gradle.api.UncheckedIOException;
-import org.gradle.api.file.ProjectLayout;
-import org.gradle.api.provider.Property;
-import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.TaskAction;
-import org.gradle.tooling.GradleConnectionException;
-import org.gradle.tooling.GradleConnector;
-import org.gradle.tooling.ProjectConnection;
 
-public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask {
-
-    @Input
-    public abstract Property<AllowListFile> getAllowList();
-
-    @Input
-    public abstract Property<AllowListFile> getAllowListLock();
-
-    @Input
-    @org.gradle.api.tasks.Optional
-    public abstract Property<String> getInitScript();
-
-    @Input
-    public abstract Property<Boolean> getWriteLocks();
-
-    @Inject
-    protected abstract ProjectLayout getProjectLayout();
+public abstract class DryRunConfigurationCacheAllowListTask extends DryRunTasksTask {
 
     @Nested
     protected abstract EnvironmentVariables getEnvironmentVariables();
@@ -70,142 +38,36 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask 
     protected abstract CircleCiArtifacts getCircleCiArtifacts();
 
     @TaskAction
-    public final void validate() throws IOException {
+    public final void dryRun() {
         Set<String> allowListTasks = getAllowList().get().loadAllowedTasks();
 
-        if (!Files.exists(getAllowListLock().get().path())) {
-            if (getWriteLocks().get()) {
-                Files.createFile(getAllowListLock().get().path());
-                return;
-            }
+        ImmutableList<String> arguments = ImmutableList.<String>builder()
+                .addAll(buildBaseArguments())
+                .add("--configuration-cache")
+                .build();
 
-            throw new RuntimeException(
-                    """
-                Lock file does not exist at %s.
-                Please run `./gradlew writeConfigurationCacheAllowList` to generate the lock file.
-                """
-                            .formatted(getAllowListLock().get().path()));
-        }
-
-        if (allowListTasks.isEmpty()) {
-            getLogger().info("No tasks to validate");
-            return;
-        }
-
-        getLogger().info("Validating that {} tasks run with the configuration cache", allowListTasks.size());
-
-        GradleConnector connector = GradleConnector.newConnector()
-                .forProjectDirectory(getProjectLayout().getProjectDirectory().getAsFile());
-
-        try (ProjectConnection connection = connector.connect()) {
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            ImmutableList<String> arguments = buildArguments();
-
-            try {
-                connection
-                        .newBuild()
-                        .forTasks(allowListTasks.toArray(new String[0]))
-                        .withArguments(arguments)
-                        .setStandardOutput(outputStream)
-                        .setStandardError(outputStream)
-                        .run();
-
-                getLogger().info("All {} tasks passed configuration cache validation", allowListTasks.size());
-
-                String output = outputStream.toString(StandardCharsets.UTF_8);
-                Set<String> dryRanTasks = Pattern.compile("(:[\\w:-]+)\\s+SKIPPED")
-                        .matcher(output)
-                        .results()
-                        .map(m -> m.group(1)) // Now includes the colon
-                        .collect(Collectors.toCollection(TreeSet::new));
-
-                if (getWriteLocks().get()) {
-                    Files.write(
-                            getAllowListLock().get().path(),
-                            dryRanTasks,
-                            StandardCharsets.UTF_8,
-                            StandardOpenOption.TRUNCATE_EXISTING);
-                    return;
-                }
-
-                if (!getAllowListLock().get().loadAllowedTasks().equals(dryRanTasks)) {
-                    Set<String> lockFileTasks = getAllowListLock().get().loadAllowedTasks();
-                    String diffMessage = buildLockFileDiffMessage(lockFileTasks, dryRanTasks);
-                    throw new RuntimeException(diffMessage);
-                }
-
-            } catch (GradleConnectionException e) {
-                String message = errorMessage(outputStream);
-                throw new RuntimeException(message);
-            } catch (IOException e) {
-                throw new UncheckedIOException("Failed to write configuration cache lock file", e);
-            }
+        try {
+            runTasksInDryRunMode(allowListTasks, arguments);
+            getLogger().info("All {} tasks passed configuration cache validation", allowListTasks.size());
+        } catch (DryRunException e) {
+            String message = buildConfigurationCacheErrorMessage(e.getOutput());
+            throw new RuntimeException(message, e);
         }
     }
 
-    private ImmutableList<String> buildArguments() {
-        ImmutableList.Builder<String> argumentsBuilder = ImmutableList.builder();
-        argumentsBuilder.add("--dry-run", "--configuration-cache");
-
-        // GradleConnector runs builds in a separate process, so we must explicitly pass init scripts.
-        // This is required for Nebula tests, which rely on init scripts for test setup.
-        if (getInitScript().isPresent() && !getInitScript().get().isBlank()) {
-            argumentsBuilder.add("--init-script=" + getInitScript().get());
-        }
-
-        return argumentsBuilder.build();
-    }
-
-    private String buildLockFileDiffMessage(Set<String> lockFileTasks, Set<String> dryRanTasks) {
-        // Find differences
-        Set<String> inLockNotInDryRun = new HashSet<>(lockFileTasks);
-        inLockNotInDryRun.removeAll(dryRanTasks);
-
-        Set<String> inDryRunNotInLock = new HashSet<>(dryRanTasks);
-        inDryRunNotInLock.removeAll(lockFileTasks);
-
-        StringBuilder diffMessage = new StringBuilder();
-        diffMessage.append(
-                "Lock file does not match ran tasks. Please run `./gradlew writeConfigurationCacheAllowList` to regenerate the lock file.\n\n");
-
-        if (!inLockNotInDryRun.isEmpty()) {
-            diffMessage.append("Tasks in lock file but NOT executed (may have been removed or renamed):\n");
-            inLockNotInDryRun.stream()
-                    .sorted()
-                    .forEach(task -> diffMessage.append("  - ").append(task).append("\n"));
-            diffMessage.append("\n");
-        }
-
-        if (!inDryRunNotInLock.isEmpty()) {
-            diffMessage.append("Tasks executed but NOT in lock file (new tasks that are config cache compatible):\n");
-            inDryRunNotInLock.stream()
-                    .sorted()
-                    .forEach(task -> diffMessage.append("  + ").append(task).append("\n"));
-            diffMessage.append("\n");
-        }
-
-        diffMessage
-                .append("Total tasks in lock file: ")
-                .append(lockFileTasks.size())
-                .append("\n");
-        diffMessage.append("Total tasks executed: ").append(dryRanTasks.size());
-
-        return diffMessage.toString();
-    }
-
-    private String errorMessage(ByteArrayOutputStream outputStream) {
+    private String buildConfigurationCacheErrorMessage(String outputContent) {
         boolean isCircleCI = getEnvironmentVariables()
                 .envVarOrFromTestingProperty("CIRCLECI")
                 .isPresent();
 
         if (!isCircleCI) {
-            return buildDetailedErrorMessage(outputStream.toString(StandardCharsets.UTF_8), Optional.empty());
+            return buildDetailedErrorMessage(outputContent, Optional.empty());
         }
 
-        return circleCiErrorMessage(outputStream);
+        return circleCiErrorMessage(outputContent);
     }
 
-    private String circleCiErrorMessage(ByteArrayOutputStream outputStream) {
+    private String circleCiErrorMessage(String outputContent) {
         try {
             String artifactPath = "configuration-cache-validation-report/validation-report.txt";
             ArtifactLocation artifactLocation =
@@ -214,10 +76,9 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask 
             Path artifactLocationPath =
                     artifactLocation.physicalPath().getAsFile().toPath();
             Files.createDirectories(artifactLocationPath.getParent());
-            Files.write(artifactLocationPath, outputStream.toByteArray());
+            Files.write(artifactLocationPath, outputContent.getBytes());
 
-            return buildDetailedErrorMessage(
-                    outputStream.toString(StandardCharsets.UTF_8), Optional.of(artifactLocation.circleLink()));
+            return buildDetailedErrorMessage(outputContent, Optional.of(artifactLocation.circleLink()));
         } catch (IOException e) {
             // Fall back to including output directly if we can't create the artifact
             return String.format(
@@ -226,8 +87,7 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask 
 
                     (Failed to save CircleCI artifact: %s)
                     """,
-                    buildDetailedErrorMessage(outputStream.toString(StandardCharsets.UTF_8), Optional.empty()),
-                    e.getMessage());
+                    buildDetailedErrorMessage(outputContent, Optional.empty()), e.getMessage());
         }
     }
 
