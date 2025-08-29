@@ -21,13 +21,18 @@ import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.HashSet;
 import java.util.Set;
+import org.gradle.api.DefaultTask;
 import org.gradle.api.UncheckedIOException;
 import org.gradle.api.provider.Property;
+import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.options.Option;
 
-public abstract class CheckConfigurationCacheAllowListTask extends DryRunTasksTask {
+public abstract class CheckConfigurationCacheAllowListTask extends DefaultTask {
+
+    @Input
+    public abstract SetProperty<String> getDryRanTasks();
 
     @Input
     public abstract Property<AllowListFile> getAllowListLock();
@@ -40,8 +45,6 @@ public abstract class CheckConfigurationCacheAllowListTask extends DryRunTasksTa
 
     @TaskAction
     public final void check() {
-        Set<String> allowListTasks = getAllowList().get().loadAllowedTasks();
-
         // Check if lock file exists
         if (!Files.exists(getAllowListLock().get().path())) {
             if (getShouldFix().get()) {
@@ -64,44 +67,40 @@ public abstract class CheckConfigurationCacheAllowListTask extends DryRunTasksTa
             }
         }
 
-        try {
-            Set<String> dryRanTasks = runTasksInDryRunMode(allowListTasks, buildBaseArguments());
-            Set<String> lockFileTasks = getAllowListLock().get().loadAllowedTasks();
+        Set<String> dryRanTasks = getDryRanTasks().get();
+        Set<String> lockFileTasks = getAllowListLock().get().loadAllowedTasks();
 
-            if (lockFileTasks.equals(dryRanTasks)) {
-                getLogger().lifecycle("Lock file is up to date with {} tasks", lockFileTasks.size());
-                return;
+        if (lockFileTasks.equals(dryRanTasks)) {
+            getLogger().lifecycle("Lock file is up to date with {} tasks", lockFileTasks.size());
+            return;
+        }
+
+        // Find differences
+        Set<String> inLockNotInDryRun = new HashSet<>(lockFileTasks);
+        inLockNotInDryRun.removeAll(dryRanTasks);
+
+        Set<String> inDryRunNotInLock = new HashSet<>(dryRanTasks);
+        inDryRunNotInLock.removeAll(lockFileTasks);
+
+        if (getShouldFix().get()) {
+            getLogger().info("Updating lock file with {} tasks", dryRanTasks.size());
+            try {
+                Files.write(
+                        getAllowListLock().get().path(),
+                        dryRanTasks,
+                        StandardCharsets.UTF_8,
+                        StandardOpenOption.TRUNCATE_EXISTING);
+                getLogger()
+                        .info(
+                                "Successfully updated lock file at {}",
+                                getAllowListLock().get().path());
+            } catch (IOException e) {
+                throw new UncheckedIOException("Failed to write configuration cache lock file", e);
             }
-
-            // Find differences
-            Set<String> inLockNotInDryRun = new HashSet<>(lockFileTasks);
-            inLockNotInDryRun.removeAll(dryRanTasks);
-
-            Set<String> inDryRunNotInLock = new HashSet<>(dryRanTasks);
-            inDryRunNotInLock.removeAll(lockFileTasks);
-
-            if (getShouldFix().get()) {
-                getLogger().info("Updating lock file with {} tasks", dryRanTasks.size());
-                try {
-                    Files.write(
-                            getAllowListLock().get().path(),
-                            dryRanTasks,
-                            StandardCharsets.UTF_8,
-                            StandardOpenOption.TRUNCATE_EXISTING);
-                    getLogger()
-                            .info(
-                                    "Successfully updated lock file at {}",
-                                    getAllowListLock().get().path());
-                } catch (IOException e) {
-                    throw new UncheckedIOException("Failed to write configuration cache lock file", e);
-                }
-            } else {
-                String diffMessage =
-                        buildLockFileDiffMessage(lockFileTasks, dryRanTasks, inLockNotInDryRun, inDryRunNotInLock);
-                throw new RuntimeException(diffMessage);
-            }
-        } catch (DryRunException e) {
-            throw new RuntimeException("Failed to run tasks in dry-run mode: " + e.getMessage(), e);
+        } else {
+            String diffMessage =
+                    buildLockFileDiffMessage(lockFileTasks, dryRanTasks, inLockNotInDryRun, inDryRunNotInLock);
+            throw new RuntimeException(diffMessage);
         }
     }
 

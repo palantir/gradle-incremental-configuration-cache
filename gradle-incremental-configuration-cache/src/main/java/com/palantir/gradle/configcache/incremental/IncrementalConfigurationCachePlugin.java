@@ -86,7 +86,6 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
         TaskProvider<CheckConfigurationCacheAllowListTask> checkAllowList = project.getTasks()
                 .register("checkConfigurationCacheAllowList", CheckConfigurationCacheAllowListTask.class, task -> {
-                    task.getAllowList().set(new AllowListFile(allowListPath));
                     task.getAllowListLock().set(allowListLock);
                     task.getShouldFix().set(false);
                 });

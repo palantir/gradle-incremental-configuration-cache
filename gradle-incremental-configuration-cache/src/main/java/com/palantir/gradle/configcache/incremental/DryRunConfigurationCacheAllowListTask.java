@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableList;
 import com.palantir.gradle.utils.circleciartifacts.ArtifactLocation;
 import com.palantir.gradle.utils.circleciartifacts.CircleCiArtifacts;
 import com.palantir.gradle.utils.environmentvariables.EnvironmentVariables;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -27,10 +28,36 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import javax.inject.Inject;
+import org.gradle.api.DefaultTask;
+import org.gradle.api.file.ProjectLayout;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.Nested;
+import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.tooling.GradleConnectionException;
+import org.gradle.tooling.GradleConnector;
+import org.gradle.tooling.ProjectConnection;
 
-public abstract class DryRunConfigurationCacheAllowListTask extends DryRunTasksTask {
+public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask {
+
+    @Input
+    public abstract Property<AllowListFile> getAllowList();
+
+    @Input
+    @org.gradle.api.tasks.Optional
+    public abstract Property<String> getInitScript();
+
+    @OutputFile
+    public abstract RegularFileProperty getOutputFile();
+
+    @Inject
+    protected abstract ProjectLayout getProjectLayout();
 
     @Nested
     protected abstract EnvironmentVariables getEnvironmentVariables();
@@ -39,36 +66,75 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DryRunTasksT
     protected abstract CircleCiArtifacts getCircleCiArtifacts();
 
     @TaskAction
-    public final void dryRun() {
+    public final void validate() {
         Set<String> allowListTasks = getAllowList().get().loadAllowedTasks();
 
-        ImmutableList<String> arguments = ImmutableList.<String>builder()
-                .addAll(buildBaseArguments())
-                .add("--configuration-cache")
-                .build();
+        if (allowListTasks.isEmpty()) {
+            getLogger().info("No tasks to validate");
+            return;
+        }
 
-        try {
-            runTasksInDryRunMode(allowListTasks, arguments);
-            getLogger().info("All {} tasks passed configuration cache validation", allowListTasks.size());
-        } catch (DryRunException e) {
-            String message = buildConfigurationCacheErrorMessage(e.getOutput());
-            throw new RuntimeException(message, e);
+        getLogger().info("Validating that {} tasks run with the configuration cache", allowListTasks.size());
+
+        GradleConnector connector = GradleConnector.newConnector()
+                .forProjectDirectory(getProjectLayout().getProjectDirectory().getAsFile());
+
+        try (ProjectConnection connection = connector.connect()) {
+            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            ImmutableList<String> arguments = buildArguments();
+
+            try {
+                connection
+                        .newBuild()
+                        .forTasks(allowListTasks.toArray(new String[0]))
+                        .withArguments(arguments)
+                        .setStandardOutput(outputStream)
+                        .setStandardError(outputStream)
+                        .run();
+
+                getLogger().info("All {} tasks passed configuration cache validation", allowListTasks.size());
+
+            } catch (GradleConnectionException e) {
+                String message = errorMessage(outputStream);
+                throw new RuntimeException(message);
+            } finally {
+                String output = outputStream.toString(StandardCharsets.UTF_8);
+
+                Set<String> dryRanTasks = Pattern.compile("(:[\\w:-]+)\\s+SKIPPED")
+                        .matcher(output)
+                        .results()
+                        .map(m -> m.group(1))
+                        .collect(Collectors.toCollection(TreeSet::new));
+            }
         }
     }
 
-    private String buildConfigurationCacheErrorMessage(String outputContent) {
+    private ImmutableList<String> buildArguments() {
+        ImmutableList.Builder<String> argumentsBuilder = ImmutableList.builder();
+        argumentsBuilder.add("--dry-run", "--configuration-cache");
+
+        // GradleConnector runs builds in a separate process, so we must explicitly pass init scripts.
+        // This is required for Nebula tests, which rely on init scripts for test setup.
+        if (getInitScript().isPresent() && !getInitScript().get().isBlank()) {
+            argumentsBuilder.add("--init-script=" + getInitScript().get());
+        }
+
+        return argumentsBuilder.build();
+    }
+
+    private String errorMessage(ByteArrayOutputStream outputStream) {
         boolean isCircleCI = getEnvironmentVariables()
                 .envVarOrFromTestingProperty("CIRCLECI")
                 .isPresent();
 
         if (!isCircleCI) {
-            return buildDetailedErrorMessage(outputContent, Optional.empty());
+            return buildDetailedErrorMessage(outputStream.toString(StandardCharsets.UTF_8), Optional.empty());
         }
 
-        return circleCiErrorMessage(outputContent);
+        return circleCiErrorMessage(outputStream);
     }
 
-    private String circleCiErrorMessage(String outputContent) {
+    private String circleCiErrorMessage(ByteArrayOutputStream outputStream) {
         try {
             String artifactPath = "configuration-cache-validation-report/validation-report.txt";
             ArtifactLocation artifactLocation =
@@ -77,9 +143,10 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DryRunTasksT
             Path artifactLocationPath =
                     artifactLocation.physicalPath().getAsFile().toPath();
             Files.createDirectories(artifactLocationPath.getParent());
-            Files.write(artifactLocationPath, outputContent.getBytes(StandardCharsets.UTF_8));
+            Files.write(artifactLocationPath, outputStream.toByteArray());
 
-            return buildDetailedErrorMessage(outputContent, Optional.of(artifactLocation.circleLink()));
+            return buildDetailedErrorMessage(
+                    outputStream.toString(StandardCharsets.UTF_8), Optional.of(artifactLocation.circleLink()));
         } catch (IOException e) {
             // Fall back to including output directly if we can't create the artifact
             return String.format(
@@ -88,7 +155,8 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DryRunTasksT
 
                     (Failed to save CircleCI artifact: %s)
                     """,
-                    buildDetailedErrorMessage(outputContent, Optional.empty()), e.getMessage());
+                    buildDetailedErrorMessage(outputStream.toString(StandardCharsets.UTF_8), Optional.empty()),
+                    e.getMessage());
         }
     }
 
