@@ -16,23 +16,22 @@
 package com.palantir.gradle.configcache.incremental;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.util.HashSet;
 import java.util.Set;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.UncheckedIOException;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
-import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.options.Option;
 
 public abstract class CheckConfigurationCacheAllowListTask extends DefaultTask {
 
-    @Input
-    public abstract SetProperty<String> getDryRanTasks();
+    @InputFile
+    public abstract RegularFileProperty getDryRunTasksFile();
 
     @Input
     public abstract Property<AllowListFile> getAllowListLock();
@@ -67,7 +66,8 @@ public abstract class CheckConfigurationCacheAllowListTask extends DefaultTask {
             }
         }
 
-        Set<String> dryRanTasks = getDryRanTasks().get();
+        Set<String> dryRanTasks =
+                new AllowListFile(getDryRunTasksFile().getAsFile().get().toPath()).loadAllowedTasks();
         Set<String> lockFileTasks = getAllowListLock().get().loadAllowedTasks();
 
         if (lockFileTasks.equals(dryRanTasks)) {
@@ -83,20 +83,7 @@ public abstract class CheckConfigurationCacheAllowListTask extends DefaultTask {
         inDryRunNotInLock.removeAll(lockFileTasks);
 
         if (getShouldFix().get()) {
-            getLogger().info("Updating lock file with {} tasks", dryRanTasks.size());
-            try {
-                Files.write(
-                        getAllowListLock().get().path(),
-                        dryRanTasks,
-                        StandardCharsets.UTF_8,
-                        StandardOpenOption.TRUNCATE_EXISTING);
-                getLogger()
-                        .info(
-                                "Successfully updated lock file at {}",
-                                getAllowListLock().get().path());
-            } catch (IOException e) {
-                throw new UncheckedIOException("Failed to write configuration cache lock file", e);
-            }
+            AllowListFile.write(getAllowListLock().get().path(), dryRanTasks);
         } else {
             String diffMessage =
                     buildLockFileDiffMessage(lockFileTasks, dryRanTasks, inLockNotInDryRun, inDryRunNotInLock);

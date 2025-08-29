@@ -68,7 +68,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
         Path allowListLockPath =
                 project.getRootProject().getProjectDir().toPath().resolve(ALLOW_LIST_LOCK_FILE);
-        AllowListFile allowListLock = new AllowListFile(allowListLockPath, true);
+        AllowListFile allowListLock = new AllowListFile(allowListLockPath);
         Set<String> enabledTasks = allowListLock.loadAllowedTasks();
 
         project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
@@ -81,17 +81,24 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
         TaskProvider<DryRunConfigurationCacheAllowListTask> dryRunAllowList = project.getTasks()
                 .register("dryRunConfigurationCacheAllowList", DryRunConfigurationCacheAllowListTask.class, task -> {
-                    task.getAllowList().set(new AllowListFile(allowListPath));
+                    task.getAllowListFile()
+                            .set(project.getLayout().getProjectDirectory().file(allowListPath.toString()));
+                    task.getOutputFile()
+                            .set(task.getTemporaryDir()
+                                    .toPath()
+                                    .resolve("dry-run-tasks.txt")
+                                    .toFile());
                 });
 
         TaskProvider<CheckConfigurationCacheAllowListTask> checkAllowList = project.getTasks()
                 .register("checkConfigurationCacheAllowList", CheckConfigurationCacheAllowListTask.class, task -> {
                     task.getAllowListLock().set(allowListLock);
                     task.getShouldFix().set(false);
+                    task.getDryRunTasksFile()
+                            .set(dryRunAllowList.flatMap(DryRunConfigurationCacheAllowListTask::getOutputFile));
                 });
 
         project.getPluginManager().apply(LifecycleBasePlugin.class);
-        project.getTasks().named("check").configure(task -> task.dependsOn(dryRunAllowList));
         project.getTasks().named("check").configure(task -> task.dependsOn(checkAllowList));
 
         ensureReportsDirIsSymlinkedToCircleArtifacts();

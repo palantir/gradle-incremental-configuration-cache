@@ -47,7 +47,7 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
 
         then:
         result.task(':dryRunConfigurationCacheAllowList').outcome == TaskOutcome.SUCCESS
-        result.output.contains('No tasks to run')
+        result.output.contains('No tasks to validate')
     }
 
     def 'validates compatible tasks successfully'() {
@@ -128,7 +128,7 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
         report.text.contains("1 problem was found storing the configuration cache.")
     }
 
-    def 'task is hooked into check task'() {
+    def 'dryRunConfigurationCacheAllowList is hooked into check task'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << ''
         file('gradle/configuration-cache-allowed-tasks.lock') << ''

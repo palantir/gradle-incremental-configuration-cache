@@ -26,7 +26,7 @@ class CheckConfigurationCacheAllowListTaskIntegrationSpec extends ConfigurationC
             apply plugin: 'com.palantir.incremental-configuration-cache'
             apply plugin: 'java-library'
             
-            tasks.named('checkConfigurationCacheAllowList') {
+            tasks.named('dryRunConfigurationCacheAllowList') {
                 initScript.set(file('.gradle-test-kit/init.gradle').absolutePath)
             }
         '''.stripIndent(true)
@@ -37,7 +37,7 @@ class CheckConfigurationCacheAllowListTaskIntegrationSpec extends ConfigurationC
         '''.stripIndent(true)
     }
 
-    def 'validation task is hooked into check task'() {
+    def 'checkConfigurationCacheAllowList is hooked into check task'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << ''
         file('gradle/configuration-cache-allowed-tasks.lock') << ''

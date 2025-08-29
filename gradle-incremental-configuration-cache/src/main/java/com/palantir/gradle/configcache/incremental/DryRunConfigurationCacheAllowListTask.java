@@ -37,6 +37,7 @@ import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
@@ -46,8 +47,8 @@ import org.gradle.tooling.ProjectConnection;
 
 public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask {
 
-    @Input
-    public abstract Property<AllowListFile> getAllowList();
+    @InputFile
+    public abstract RegularFileProperty getAllowListFile();
 
     @Input
     @org.gradle.api.tasks.Optional
@@ -67,10 +68,12 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask 
 
     @TaskAction
     public final void validate() {
-        Set<String> allowListTasks = getAllowList().get().loadAllowedTasks();
+        Set<String> allowListTasks =
+                new AllowListFile(getAllowListFile().getAsFile().get().toPath()).loadAllowedTasks();
 
         if (allowListTasks.isEmpty()) {
             getLogger().info("No tasks to validate");
+            AllowListFile.write(getOutputFile().getAsFile().get().toPath(), new TreeSet<>());
             return;
         }
 
@@ -99,12 +102,13 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask 
                 throw new RuntimeException(message);
             } finally {
                 String output = outputStream.toString(StandardCharsets.UTF_8);
-
                 Set<String> dryRanTasks = Pattern.compile("(:[\\w:-]+)\\s+SKIPPED")
                         .matcher(output)
                         .results()
                         .map(m -> m.group(1))
                         .collect(Collectors.toCollection(TreeSet::new));
+
+                AllowListFile.write(getOutputFile().getAsFile().get().toPath(), dryRanTasks);
             }
         }
     }

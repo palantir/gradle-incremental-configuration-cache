@@ -18,32 +18,18 @@ package com.palantir.gradle.configcache.incremental;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-public record AllowListFile(Path path, boolean allowMissing) {
-    public AllowListFile(Path path) {
-        this(path, false);
-    }
-
-    public AllowListFile(Path path, boolean allowMissing) {
-        this.path = path;
-        this.allowMissing = allowMissing;
-
-        if (!allowMissing && !Files.exists(path)) {
-            throw new RuntimeException("AllowListFile does not exist at " + path);
-        }
-    }
-
+public record AllowListFile(Path path) {
     public Set<String> loadAllowedTasks() {
         if (!Files.exists(path)) {
-            if (allowMissing) {
-                return new TreeSet<>();
-            }
-            throw new RuntimeException("AllowListFile does not exist at " + path);
+            return new TreeSet<>();
         }
 
         try {
@@ -54,5 +40,20 @@ public record AllowListFile(Path path, boolean allowMissing) {
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to read configuration cache allowed tasks file: " + path, e);
         }
+    }
+
+    public static AllowListFile write(Path path, Set<String> allowListTasks) {
+        try {
+            Files.write(
+                    path,
+                    allowListTasks,
+                    StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to write to allow list file at " + path, e);
+        }
+
+        return new AllowListFile(path);
     }
 }
