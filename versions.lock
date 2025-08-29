@@ -10,9 +10,11 @@ com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava (1 c
 
 com.google.j2objc:j2objc-annotations:3.0.0 (1 constraints: 150aeab4)
 
-com.palantir.gradle.utils:circleci-artifacts:0.17.0 (1 constraints: 3a05383b)
+com.palantir.gradle.utils:circleci-artifacts:999 (1 constraints: c104512c)
 
-com.palantir.gradle.utils:environment-variables:0.17.0 (2 constraints: 3318bf89)
+com.palantir.gradle.utils:environment-variables:999 (2 constraints: 4117eb1a)
+
+com.palantir.gradle.utils:providers:999 (1 constraints: 81123cfc)
 
 commons-io:commons-io:2.20.0 (1 constraints: 3605333b)
 

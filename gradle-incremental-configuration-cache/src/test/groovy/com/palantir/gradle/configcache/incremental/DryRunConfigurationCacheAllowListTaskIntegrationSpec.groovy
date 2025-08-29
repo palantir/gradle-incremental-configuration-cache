@@ -18,7 +18,7 @@ package com.palantir.gradle.configcache.incremental
 import com.palantir.gradle.plugintesting.ConfigurationCacheSpec
 import org.gradle.testkit.runner.TaskOutcome
 
-class DryRunConfigurationCacheAllowListTasksIntegrationSpec extends ConfigurationCacheSpec {
+class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends ConfigurationCacheSpec {
 
     def setup() {
         // language=gradle
@@ -63,7 +63,7 @@ class DryRunConfigurationCacheAllowListTasksIntegrationSpec extends Configuratio
         def result = runTasksWithConfigurationCache('dryRunConfigurationCacheAllowList', '--info')
 
         then:
-        result.task(':dryRunConfigurationCacheAllowList').outcome == TaskOutcome.SUCCESS
+        result.tasks(TaskOutcome.SUCCESS)*.path.contains(':dryRunConfigurationCacheAllowList')
         result.output.contains('Validating that 3 tasks run with the configuration cache')
         result.output.contains('All 3 tasks passed configuration cache validation')
     }
@@ -85,8 +85,8 @@ class DryRunConfigurationCacheAllowListTasksIntegrationSpec extends Configuratio
         def result = runTasksAndFail('dryRunConfigurationCacheAllowList')
 
         then:
-        result.task(':dryRunConfigurationCacheAllowList').outcome == TaskOutcome.FAILED
-        result.output.contains('CONFIGURATION CACHE VALIDATION FAILED')
+        result.tasks(TaskOutcome.FAILED)*.path.contains(':dryRunConfigurationCacheAllowList')
+        result.output.contains('CONFIGURATION CACHE ALLOW LIST VALIDATION FAILED')
     }
 
     def 'fails validation for incompatible tasks on CI creates report'() {
@@ -109,12 +109,13 @@ class DryRunConfigurationCacheAllowListTasksIntegrationSpec extends Configuratio
                 '-P__TESTING_CIRCLE_PROJECT_USERNAME=test-username',
                 '-P__TESTING_CIRCLE_PROJECT_REPONAME=test-repo',
                 '-P__TESTING_CIRCLE_BUILD_NUM=123',
-                '-P__TESTING_CIRCLE_NODE_INDEX=0'
+                '-P__TESTING_CIRCLE_NODE_INDEX=0',
+                '-P__TESTING_CIRCLE_WORKFLOW_JOB_ID=123'
         )
 
         then:
-        result.task(':dryRunConfigurationCacheAllowList').outcome == TaskOutcome.FAILED
-        result.output.contains('CONFIGURATION CACHE VALIDATION FAILED')
+        result.tasks(TaskOutcome.FAILED)*.path.contains(':dryRunConfigurationCacheAllowList')
+        result.output.contains('CONFIGURATION CACHE ALLOW LIST VALIDATION FAILED')
 
         def report = new File(projectDir, 'circle-artifacts/configuration-cache-validation-report/validation-report.txt')
         report.exists()
