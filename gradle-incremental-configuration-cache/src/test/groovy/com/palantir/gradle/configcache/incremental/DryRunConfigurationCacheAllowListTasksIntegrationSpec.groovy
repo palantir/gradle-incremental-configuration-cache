@@ -26,7 +26,7 @@ class DryRunConfigurationCacheAllowListTasksIntegrationSpec extends Configuratio
             apply plugin: 'com.palantir.incremental-configuration-cache'
             apply plugin: 'java-library'
             
-            tasks.named('dryRunConfigurationCacheAllowListTasks') {
+            tasks.named('dryRunConfigurationCacheAllowList') {
                 initScript.set(file('.gradle-test-kit/init.gradle').absolutePath)
             }
         '''.stripIndent(true)
@@ -42,28 +42,28 @@ class DryRunConfigurationCacheAllowListTasksIntegrationSpec extends Configuratio
         file('gradle/configuration-cache-allowed-tasks') << ''
 
         when:
-        def result = runTasksWithConfigurationCache(true, false, 'dryRunConfigurationCacheAllowListTasks', '--info')
+        def result = runTasksWithConfigurationCache(true, false, 'dryRunConfigurationCacheAllowList', '--info')
 
         then:
-        result.task(':dryRunConfigurationCacheAllowListTasks').outcome == TaskOutcome.SUCCESS
+        result.task(':dryRunConfigurationCacheAllowList').outcome == TaskOutcome.SUCCESS
         result.output.contains('No tasks to validate')
     }
 
     def 'validates compatible tasks successfully'() {
         given:
-        // We must have dryRunConfigurationCacheAllowListTasks in the allow list to allow
-        // dryRunConfigurationCacheAllowListTasks to run with configuration cache
+        // We must have dryRunConfigurationCacheAllowList in the allow list to allow
+        // dryRunConfigurationCacheAllowList to run with configuration cache
         file('gradle/configuration-cache-allowed-tasks') << '''
             :compileJava
             :processResources
-            :dryRunConfigurationCacheAllowListTasks
+            :dryRunConfigurationCacheAllowList
         '''.stripIndent(true)
 
         when:
-        def result = runTasksWithConfigurationCache('dryRunConfigurationCacheAllowListTasks', '--info')
+        def result = runTasksWithConfigurationCache('dryRunConfigurationCacheAllowList', '--info')
 
         then:
-        result.task(':dryRunConfigurationCacheAllowListTasks').outcome == TaskOutcome.SUCCESS
+        result.task(':dryRunConfigurationCacheAllowList').outcome == TaskOutcome.SUCCESS
         result.output.contains('Validating that 3 tasks run with the configuration cache')
         result.output.contains('All 3 tasks passed configuration cache validation')
     }
@@ -72,7 +72,7 @@ class DryRunConfigurationCacheAllowListTasksIntegrationSpec extends Configuratio
         given:
         file('gradle/configuration-cache-allowed-tasks') << '''
             :problematicTask
-            :dryRunConfigurationCacheAllowListTasks
+            :dryRunConfigurationCacheAllowList
         '''.stripIndent(true)
 
         buildFile << '''
@@ -82,10 +82,10 @@ class DryRunConfigurationCacheAllowListTasksIntegrationSpec extends Configuratio
         '''.stripIndent(true)
 
         when:
-        def result = runTasksAndFail('dryRunConfigurationCacheAllowListTasks')
+        def result = runTasksAndFail('dryRunConfigurationCacheAllowList')
 
         then:
-        result.task(':dryRunConfigurationCacheAllowListTasks').outcome == TaskOutcome.FAILED
+        result.task(':dryRunConfigurationCacheAllowList').outcome == TaskOutcome.FAILED
         result.output.contains('CONFIGURATION CACHE VALIDATION FAILED')
     }
 
@@ -93,7 +93,7 @@ class DryRunConfigurationCacheAllowListTasksIntegrationSpec extends Configuratio
         given:
         file('gradle/configuration-cache-allowed-tasks') << '''
             :problematicTask
-            :dryRunConfigurationCacheAllowListTasks
+            :dryRunConfigurationCacheAllowList
         '''.stripIndent(true)
 
         buildFile << '''
@@ -103,7 +103,7 @@ class DryRunConfigurationCacheAllowListTasksIntegrationSpec extends Configuratio
         '''.stripIndent(true)
 
         when:
-        def result = runTasksAndFail('dryRunConfigurationCacheAllowListTasks',
+        def result = runTasksAndFail('dryRunConfigurationCacheAllowList',
                 '-P__TESTING_CIRCLECI=true',
                 '-P__TESTING_CIRCLE_ARTIFACTS=' + getProjectDir().toPath().resolve('circle-artifacts'),
                 '-P__TESTING_CIRCLE_PROJECT_USERNAME=test-username',
@@ -113,7 +113,7 @@ class DryRunConfigurationCacheAllowListTasksIntegrationSpec extends Configuratio
         )
 
         then:
-        result.task(':dryRunConfigurationCacheAllowListTasks').outcome == TaskOutcome.FAILED
+        result.task(':dryRunConfigurationCacheAllowList').outcome == TaskOutcome.FAILED
         result.output.contains('CONFIGURATION CACHE VALIDATION FAILED')
 
         def report = new File(projectDir, 'circle-artifacts/configuration-cache-validation-report/validation-report.txt')
@@ -129,6 +129,6 @@ class DryRunConfigurationCacheAllowListTasksIntegrationSpec extends Configuratio
         def result = runTasks('check', '--dry-run')
 
         then:
-        result.output.contains(':dryRunConfigurationCacheAllowListTasks')
+        result.output.contains(':dryRunConfigurationCacheAllowList')
     }
 }
