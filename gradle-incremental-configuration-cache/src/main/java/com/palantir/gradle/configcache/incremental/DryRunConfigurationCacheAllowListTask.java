@@ -70,8 +70,22 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask 
     protected abstract CircleCiArtifacts getCircleCiArtifacts();
 
     @TaskAction
-    public final void validate() {
+    public final void validate() throws IOException {
         Set<String> allowListTasks = getAllowList().get().loadAllowedTasks();
+
+        if (!Files.exists(getAllowListLock().get().path())) {
+            if (getWriteLocks().get()) {
+                Files.createFile(getAllowListLock().get().path());
+                return;
+            }
+
+            throw new RuntimeException(
+                    """
+                Lock file does not exist at %s.
+                Please run `./gradlew writeConfigurationCacheAllowList` to generate the lock file.
+                """
+                            .formatted(getAllowListLock().get().path()));
+        }
 
         if (allowListTasks.isEmpty()) {
             getLogger().info("No tasks to validate");
@@ -106,8 +120,11 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask 
                         .collect(Collectors.toCollection(TreeSet::new));
 
                 if (getWriteLocks().get()) {
-                    Files.write(getAllowListLock().get().path(), dryRanTasks, StandardCharsets.UTF_8,
-                        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                    Files.write(
+                            getAllowListLock().get().path(),
+                            dryRanTasks,
+                            StandardCharsets.UTF_8,
+                            StandardOpenOption.TRUNCATE_EXISTING);
                     return;
                 }
 
@@ -149,7 +166,7 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask 
 
         StringBuilder diffMessage = new StringBuilder();
         diffMessage.append(
-                "Lock file does not match ran tasks. Please run writeConfigurationCacheAllowList to regenerate the lock file.\n\n");
+                "Lock file does not match ran tasks. Please run `./gradlew writeConfigurationCacheAllowList` to regenerate the lock file.\n\n");
 
         if (!inLockNotInDryRun.isEmpty()) {
             diffMessage.append("Tasks in lock file but NOT executed (may have been removed or renamed):\n");

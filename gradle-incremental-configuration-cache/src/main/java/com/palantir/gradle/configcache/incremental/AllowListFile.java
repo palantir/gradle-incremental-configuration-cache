@@ -24,16 +24,28 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-public record AllowListFile(Path path) {
+public record AllowListFile(Path path, boolean allowMissing) {
     public AllowListFile(Path path) {
-        this.path = path;
+        this(path, false);
+    }
 
-        if (!Files.exists(path)) {
+    public AllowListFile(Path path, boolean allowMissing) {
+        this.path = path;
+        this.allowMissing = allowMissing;
+
+        if (!allowMissing && !Files.exists(path)) {
             throw new RuntimeException("AllowListFile does not exist at " + path);
         }
     }
 
     public Set<String> loadAllowedTasks() {
+        if (!Files.exists(path)) {
+            if (allowMissing) {
+                return new TreeSet<>();
+            }
+            throw new RuntimeException("AllowListFile does not exist at " + path);
+        }
+
         try {
             return Files.readAllLines(path).stream()
                     .map(String::trim)

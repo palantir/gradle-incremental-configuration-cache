@@ -68,12 +68,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
         Path allowListLockPath =
                 project.getRootProject().getProjectDir().toPath().resolve(ALLOW_LIST_LOCK_FILE);
-        if (!Files.exists(allowListLockPath)) {
-            throw new RuntimeException(
-                    "Configuration cache allowed tasks lock file not found at %s".formatted(allowListLockPath));
-        }
-
-        AllowListFile allowListLock = new AllowListFile(allowListLockPath);
+        AllowListFile allowListLock = new AllowListFile(allowListLockPath, true);
         Set<String> enabledTasks = allowListLock.loadAllowedTasks();
 
         project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
