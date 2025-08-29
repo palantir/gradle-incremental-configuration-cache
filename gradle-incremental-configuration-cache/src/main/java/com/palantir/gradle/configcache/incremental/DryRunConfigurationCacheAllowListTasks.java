@@ -125,9 +125,9 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
             ArtifactLocation artifactLocation =
                     getCircleCiArtifacts().resolveArtifactLocation(artifactPath).get();
 
-            Path reportFile = artifactLocation.physicalPath().getAsFile().toPath();
-            Files.createDirectories(reportFile.getParent());
-            Files.write(reportFile, outputStream.toByteArray());
+            Path artifactLocationPath = artifactLocation.physicalPath().getAsFile().toPath();
+            Files.createDirectories(artifactLocationPath.getParent());
+            Files.write(artifactLocationPath, outputStream.toByteArray());
 
             return buildDetailedErrorMessage(
                     outputStream.toString(StandardCharsets.UTF_8), Optional.of(artifactLocation.circleLink()));
@@ -161,18 +161,18 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
         String mainMessage = String.format(
                 """
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            ❌ CONFIGURATION CACHE VALIDATION FAILED
+            ❌ CONFIGURATION CACHE ALLOW LIST VALIDATION FAILED
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
             WHAT HAPPENED:
-              Failed to dry run tasks with configuration cache enabled.
+              Some task / tasks in the allow list failed to run with configuration cache enabled.
 
             %s
 
             WHY THIS MATTERS:
-              These tasks are validated together with configuration cache fully
-              enabled to detect issues that only occur when all cacheable tasks
-              run. Regular CI builds may mask these issues when non-cacheable
+              This validation task runs all the tasks marked as configuration cacheable in the allow list,
+              to ensure the allow list contains only cacheable tasks.
+              Regular CI builds may mask configuration cache issues when non-cacheable
               tasks disable the configuration cache.
 
             HOW TO FIX (only if you have introduced a task, or upgraded a plugin):
