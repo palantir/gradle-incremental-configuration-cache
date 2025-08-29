@@ -42,7 +42,7 @@ public record AllowListFile(Path path) {
         }
     }
 
-    public static AllowListFile write(Path path, Set<String> allowListTasks) {
+    public static void write(Path path, Set<String> allowListTasks) {
         try {
             Files.write(
                     path,
@@ -53,7 +53,5 @@ public record AllowListFile(Path path) {
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to write to allow list file at " + path, e);
         }
-
-        return new AllowListFile(path);
     }
 }
