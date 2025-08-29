@@ -81,8 +81,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
         TaskProvider<DryRunConfigurationCacheAllowListTask> dryRunAllowList = project.getTasks()
                 .register("dryRunConfigurationCacheAllowList", DryRunConfigurationCacheAllowListTask.class, task -> {
-                    task.getAllowListFile()
-                            .set(project.getLayout().getProjectDirectory().file(allowListPath.toString()));
+                    task.getAllowListFile().set(allowListPath.toFile());
                     task.getOutputFile()
                             .set(task.getTemporaryDir()
                                     .toPath()

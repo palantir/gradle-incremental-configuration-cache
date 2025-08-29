@@ -53,7 +53,7 @@ class CheckConfigurationCacheAllowListTaskIntegrationSpec extends ConfigurationC
         file('gradle/configuration-cache-allowed-tasks') << ''
 
         when:
-        def result = runTasksAndFail('checkConfigurationCacheAllowList')
+        def result = runTasksWithConfigurationCache(true, true,'checkConfigurationCacheAllowList')
 
         then:
         result.output.contains("Run with --fix to create the lock file.")
@@ -64,22 +64,48 @@ class CheckConfigurationCacheAllowListTaskIntegrationSpec extends ConfigurationC
         then:
         new File(projectDir, 'gradle/configuration-cache-allowed-tasks.lock').exists()
     }
-    
-    def 'checkConfigurationCacheAllowList succeeds'() {
+
+    def 'checkConfigurationCacheAllowList passes when lock file is correct'() {
         given:
         def tasks = '''
             :classes
             :compileJava
+            :checkConfigurationCacheAllowList
+            :dryRunConfigurationCacheAllowList
             :processResources
         '''.stripIndent(true)
 
         file('gradle/configuration-cache-allowed-tasks') << '''
             classes
+            checkConfigurationCacheAllowList
+        '''.stripIndent(true)
+        file('gradle/configuration-cache-allowed-tasks.lock') << tasks
+
+        when:
+        def result = runTasksWithConfigurationCacheAndCheck('checkConfigurationCacheAllowList')
+
+        then:
+        result.tasks(TaskOutcome.SUCCESS)*.path.contains(':checkConfigurationCacheAllowList')
+    }
+
+    def 'checkConfigurationCacheAllowList --fix populates the allow list lock'() {
+        given:
+        def tasks = '''
+            :checkConfigurationCacheAllowList
+            :classes
+            :compileJava
+            :dryRunConfigurationCacheAllowList
+            :processResources
+        '''.stripIndent(true)
+
+        file('gradle/configuration-cache-allowed-tasks') << '''
+            classes
+            checkConfigurationCacheAllowList
         '''.stripIndent(true)
         file('gradle/configuration-cache-allowed-tasks.lock') << ''
 
         when:
-        def result = runTasks('checkConfigurationCacheAllowList', '--fix')
+        def result = runTasksWithConfigurationCache(true, false,'checkConfigurationCacheAllowList', '--fix')
 
         then:
         result.tasks(TaskOutcome.SUCCESS)*.path.contains(':checkConfigurationCacheAllowList')
@@ -89,11 +115,9 @@ class CheckConfigurationCacheAllowListTaskIntegrationSpec extends ConfigurationC
     def 'fails when lock file has both missing and extra tasks'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << '''
-            :classes
-            :compileJava
-            :dryRunConfigurationCacheAllowList
+            classes
+            checkConfigurationCacheAllowList
             :jar
-            :processResources
         '''.stripIndent(true)
 
         // Lock file has different set of tasks
@@ -102,19 +126,26 @@ class CheckConfigurationCacheAllowListTaskIntegrationSpec extends ConfigurationC
             :compileTestJava
             :test
             :dryRunConfigurationCacheAllowList
+            :checkConfigurationCacheAllowList
         '''.stripIndent(true)
 
         when:
-        def result = runTasksAndFail('checkConfigurationCacheAllowList')
+        def result = runTasksAndFailWithConfigurationCache('checkConfigurationCacheAllowList')
 
         then:
         result.tasks(TaskOutcome.FAILED)*.path.contains(':checkConfigurationCacheAllowList')
         result.output.contains('Lock file does not match the tasks that would run')
-        result.output.contains('Total tasks in lock file: 4')
-        result.output.contains('Total tasks that would execute: 5')
+        result.output.contains('Total tasks in lock file: 5')
+        result.output.contains('Total tasks that would execute: 6')
 
         then:
-        runTasks('checkConfigurationCacheAllowList', '--fix')
-        file('gradle/configuration-cache-allowed-tasks.lock').text.trim() == file('gradle/configuration-cache-allowed-tasks').text.trim()
+        runTasksWithConfigurationCache('checkConfigurationCacheAllowList', '--fix')
+        file('gradle/configuration-cache-allowed-tasks.lock').text.trim() == '''
+            :checkConfigurationCacheAllowList
+            :classes
+            :compileJava
+            :dryRunConfigurationCacheAllowList
+            :jar
+            :processResources'''.stripIndent(true).trim()
     }
 }

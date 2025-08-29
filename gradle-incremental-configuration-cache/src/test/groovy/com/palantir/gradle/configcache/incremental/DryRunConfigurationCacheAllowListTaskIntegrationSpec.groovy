@@ -35,45 +35,54 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
         file('gradle.properties') << '''
             __TESTING=true
         '''.stripIndent(true)
+
+        // need lock file with :dryRunConfigurationCacheAllowList so it is not marked incompatible
+        file('gradle/configuration-cache-allowed-tasks.lock') << '''
+            :dryRunConfigurationCacheAllowList
+        '''.stripIndent(true)
     }
 
-    def 'validates empty task list'() {
+    def 'dry run empty task list'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << ''
-        file('gradle/configuration-cache-allowed-tasks.lock') << ''
 
         when:
-        def result = runTasksWithConfigurationCache(true, false, 'dryRunConfigurationCacheAllowList', '--info')
+        def result = runTasksWithConfigurationCacheAndCheck('dryRunConfigurationCacheAllowList', '--info')
 
         then:
         result.task(':dryRunConfigurationCacheAllowList').outcome == TaskOutcome.SUCCESS
         result.output.contains('No tasks to validate')
+
+        and:
+        def outputFile = new File(projectDir, 'build/tmp/dryRunConfigurationCacheAllowList/dry-run-tasks.txt')
+        outputFile.exists()
+        outputFile.text.trim() == ''
     }
 
-    def 'validates compatible tasks successfully'() {
+    def 'dry run compatible tasks successfully'() {
         given:
-        def tasks = '''
-            :compileJava
-            :processResources
+        file('gradle/configuration-cache-allowed-tasks') << '''
             :classes
+            :compileJava
             :dryRunConfigurationCacheAllowList
+            :processResources
         '''.stripIndent(true)
 
-        file('gradle/configuration-cache-allowed-tasks') << tasks
-        file('gradle/configuration-cache-allowed-tasks.lock') << tasks
-
         when:
-        def result = runTasksWithConfigurationCache('dryRunConfigurationCacheAllowList', '--info')
+        def result = runTasksWithConfigurationCacheAndCheck('dryRunConfigurationCacheAllowList', '--info')
 
         then:
         result.task(':dryRunConfigurationCacheAllowList').outcome == TaskOutcome.SUCCESS
         result.output.contains('All 4 tasks passed configuration cache validation')
-        !result.output.contains('Lock file does not match')
+
+        and:
+        def outputFile = new File(projectDir, 'build/tmp/dryRunConfigurationCacheAllowList/dry-run-tasks.txt')
+        outputFile.exists()
+        outputFile.text.trim() == file('gradle/configuration-cache-allowed-tasks').text.trim()
     }
 
-    def 'fails validation for incompatible tasks'() {
+    def 'fails dry run for incompatible tasks'() {
         given:
-        file('gradle/configuration-cache-allowed-tasks.lock') << ''
         file('gradle/configuration-cache-allowed-tasks') << '''
             :problematicTask
             :dryRunConfigurationCacheAllowList
@@ -86,16 +95,18 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
         '''.stripIndent(true)
 
         when:
-        def result = runTasksAndFail('dryRunConfigurationCacheAllowList')
+        def result = runTasksWithConfigurationCache(true, true, 'dryRunConfigurationCacheAllowList')
 
         then:
         result.task(':dryRunConfigurationCacheAllowList').outcome == TaskOutcome.FAILED
         result.output.contains('CONFIGURATION CACHE ALLOW LIST VALIDATION FAILED')
+
+        and:
+        new File(projectDir, 'build/tmp/dryRunConfigurationCacheAllowList/dry-run-tasks.txt').exists()
     }
 
-    def 'fails validation for incompatible tasks on CI creates report'() {
+    def 'fails dry run for incompatible tasks on CI creates report'() {
         given:
-        file('gradle/configuration-cache-allowed-tasks.lock') << ''
         file('gradle/configuration-cache-allowed-tasks') << '''
             :problematicTask
             :dryRunConfigurationCacheAllowList
@@ -108,7 +119,7 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
         '''.stripIndent(true)
 
         when:
-        def result = runTasksAndFail('dryRunConfigurationCacheAllowList',
+        def result = runTasksWithConfigurationCache(true, true, 'dryRunConfigurationCacheAllowList',
                 '-P__TESTING_CIRCLECI=true',
                 '-P__TESTING_CIRCLE_ARTIFACTS=' + getProjectDir().toPath().resolve('circle-artifacts'),
                 '-P__TESTING_CIRCLE_PROJECT_USERNAME=test-username',
@@ -126,12 +137,14 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
         report.exists()
 
         report.text.contains("1 problem was found storing the configuration cache.")
+
+        and:
+        new File(projectDir, 'build/tmp/dryRunConfigurationCacheAllowList/dry-run-tasks.txt').exists()
     }
 
     def 'dryRunConfigurationCacheAllowList is hooked into check task'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << ''
-        file('gradle/configuration-cache-allowed-tasks.lock') << ''
         when:
         def result = runTasks('check', '--dry-run')
 
