@@ -21,6 +21,7 @@ import com.palantir.gradle.utils.circleciartifacts.ArtifactLocation;
 import com.palantir.gradle.utils.circleciartifacts.CircleCiArtifacts;
 import com.palantir.gradle.utils.environmentvariables.EnvironmentVariables;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -76,7 +77,7 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DryRunTasksT
             Path artifactLocationPath =
                     artifactLocation.physicalPath().getAsFile().toPath();
             Files.createDirectories(artifactLocationPath.getParent());
-            Files.write(artifactLocationPath, outputContent.getBytes());
+            Files.write(artifactLocationPath, outputContent.getBytes(StandardCharsets.UTF_8));
 
             return buildDetailedErrorMessage(outputContent, Optional.of(artifactLocation.circleLink()));
         } catch (IOException e) {
