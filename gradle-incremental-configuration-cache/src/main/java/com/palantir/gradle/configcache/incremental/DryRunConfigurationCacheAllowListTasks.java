@@ -125,7 +125,8 @@ public abstract class DryRunConfigurationCacheAllowListTasks extends DefaultTask
             ArtifactLocation artifactLocation =
                     getCircleCiArtifacts().resolveArtifactLocation(artifactPath).get();
 
-            Path artifactLocationPath = artifactLocation.physicalPath().getAsFile().toPath();
+            Path artifactLocationPath =
+                    artifactLocation.physicalPath().getAsFile().toPath();
             Files.createDirectories(artifactLocationPath.getParent());
             Files.write(artifactLocationPath, outputStream.toByteArray());
 
