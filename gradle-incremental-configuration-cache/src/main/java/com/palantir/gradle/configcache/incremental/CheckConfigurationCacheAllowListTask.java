@@ -60,7 +60,7 @@ public abstract class CheckConfigurationCacheAllowListTask extends DefaultTask {
                 throw new RuntimeException(
                         """
                     Lock file does not exist at %s.
-                    Run with --fix to create the lock file.
+                    Run `./gradlew :checkConfigurationCacheAllowListLock --fix` to create the lock file.
                     """
                                 .formatted(getAllowListLock().get().path()));
             }
@@ -99,7 +99,7 @@ public abstract class CheckConfigurationCacheAllowListTask extends DefaultTask {
 
         StringBuilder diffMessage = new StringBuilder();
         diffMessage.append(
-                "Lock file does not match the tasks that would run. Run with --fix to update the lock file.\n\n");
+                "Lock file does not match the tasks that would run. Run `./gradlew :checkConfigurationCacheAllowListLock --fix` to update the lock file.\n\n");
 
         if (!inLockNotInDryRun.isEmpty()) {
             diffMessage.append("Tasks in lock file but NOT executed (may have been removed or renamed):\n");

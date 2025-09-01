@@ -83,6 +83,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         TaskProvider<DryRunConfigurationCacheAllowListTask> dryRunAllowList = project.getTasks()
                 .register("dryRunConfigurationCacheAllowList", DryRunConfigurationCacheAllowListTask.class, task -> {
                     task.getAllowListFile().set(allowListPath.toFile());
+                    task.getEnabledTasks().set(enabledTasks);
                     task.getOutputFile()
                             .set(task.getTemporaryDir()
                                     .toPath()
@@ -91,12 +92,17 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                 });
 
         TaskProvider<CheckConfigurationCacheAllowListTask> checkAllowList = project.getTasks()
-                .register("checkConfigurationCacheAllowList", CheckConfigurationCacheAllowListTask.class, task -> {
+                .register("checkConfigurationCacheAllowListLock", CheckConfigurationCacheAllowListTask.class, task -> {
                     task.getAllowListLock().set(allowListLock);
                     task.getShouldFix().set(false);
                     task.getDryRunTasksFile()
                             .set(dryRunAllowList.flatMap(DryRunConfigurationCacheAllowListTask::getOutputFile));
                 });
+
+        // Always run CheckConfigurationCacheAllowListTask after DryRunConfigurationCacheAllowListTask
+        // to catch edge cases like empty lock files. Without this, dry-run could pass (since all tasks
+        // are marked incompatible when lock is empty) while the CheckConfigurationCacheAllowListTask would fail.
+        dryRunAllowList.configure(task -> task.finalizedBy(checkAllowList));
 
         project.getPluginManager().apply(LifecycleBasePlugin.class);
         project.getTasks().named("check").configure(task -> task.dependsOn(checkAllowList));

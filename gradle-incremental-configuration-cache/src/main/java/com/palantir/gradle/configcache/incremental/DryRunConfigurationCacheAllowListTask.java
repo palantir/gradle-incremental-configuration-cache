@@ -36,6 +36,7 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
+import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.Nested;
@@ -49,6 +50,10 @@ public abstract class DryRunConfigurationCacheAllowListTask extends DefaultTask 
 
     @InputFile
     public abstract RegularFileProperty getAllowListFile();
+
+    // This is used to ensure we re-run if the lock file is updated
+    @Input
+    public abstract SetProperty<String> getEnabledTasks();
 
     @Input
     @org.gradle.api.tasks.Optional
