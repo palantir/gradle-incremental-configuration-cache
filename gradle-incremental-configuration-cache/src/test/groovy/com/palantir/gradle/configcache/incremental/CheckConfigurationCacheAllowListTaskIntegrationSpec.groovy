@@ -37,7 +37,7 @@ class CheckConfigurationCacheAllowListTaskIntegrationSpec extends ConfigurationC
         '''.stripIndent(true)
     }
 
-    def 'checkConfigurationCacheAllowList is hooked into check task'() {
+    def 'checkConfigurationCacheAllowListLock is hooked into check task'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << ''
         file('gradle/configuration-cache-allowed-tasks.lock') << ''
@@ -45,53 +45,53 @@ class CheckConfigurationCacheAllowListTaskIntegrationSpec extends ConfigurationC
         def result = runTasks('check', '--dry-run')
 
         then:
-        result.output.contains(':checkConfigurationCacheAllowList')
+        result.output.contains(':checkConfigurationCacheAllowListLock')
     }
 
-    def 'checkConfigurationCacheAllowList fails, --fix creates lock file'() {
+    def 'checkConfigurationCacheAllowListLock fails, --fix creates lock file'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << ''
 
         when:
-        def result = runTasksWithConfigurationCache(true, true,'checkConfigurationCacheAllowList')
+        def result = runTasksWithConfigurationCache(true, true,'checkConfigurationCacheAllowListLock')
 
         then:
-        result.output.contains("Run with --fix to create the lock file.")
+        result.output.contains("Run `./gradlew :checkConfigurationCacheAllowListLock --fix` to create the lock file.")
 
         when:
-        runTasks('checkConfigurationCacheAllowList', '--fix')
+        runTasks('checkConfigurationCacheAllowListLock', '--fix')
 
         then:
         new File(projectDir, 'gradle/configuration-cache-allowed-tasks.lock').exists()
     }
 
-    def 'checkConfigurationCacheAllowList passes when lock file is correct'() {
+    def 'checkConfigurationCacheAllowListLock passes when lock file is correct'() {
         given:
         def tasks = '''
             :classes
             :compileJava
-            :checkConfigurationCacheAllowList
+            :checkConfigurationCacheAllowListLock
             :dryRunConfigurationCacheAllowList
             :processResources
         '''.stripIndent(true)
 
         file('gradle/configuration-cache-allowed-tasks') << '''
             classes
-            checkConfigurationCacheAllowList
+            checkConfigurationCacheAllowListLock
         '''.stripIndent(true)
         file('gradle/configuration-cache-allowed-tasks.lock') << tasks
 
         when:
-        def result = runTasksWithConfigurationCacheAndCheck('checkConfigurationCacheAllowList')
+        def result = runTasksWithConfigurationCacheAndCheck('checkConfigurationCacheAllowListLock')
 
         then:
-        result.tasks(TaskOutcome.SUCCESS)*.path.contains(':checkConfigurationCacheAllowList')
+        result.tasks(TaskOutcome.SUCCESS)*.path.contains(':checkConfigurationCacheAllowListLock')
     }
 
-    def 'checkConfigurationCacheAllowList --fix populates the allow list lock'() {
+    def 'checkConfigurationCacheAllowListLock --fix populates the allow list lock'() {
         given:
         def tasks = '''
-            :checkConfigurationCacheAllowList
+            :checkConfigurationCacheAllowListLock
             :classes
             :compileJava
             :dryRunConfigurationCacheAllowList
@@ -100,15 +100,15 @@ class CheckConfigurationCacheAllowListTaskIntegrationSpec extends ConfigurationC
 
         file('gradle/configuration-cache-allowed-tasks') << '''
             classes
-            checkConfigurationCacheAllowList
+            checkConfigurationCacheAllowListLock
         '''.stripIndent(true)
         file('gradle/configuration-cache-allowed-tasks.lock') << ''
 
         when:
-        def result = runTasksWithConfigurationCache(true, false,'checkConfigurationCacheAllowList', '--fix')
+        def result = runTasksWithConfigurationCache(true, false,'checkConfigurationCacheAllowListLock', '--fix')
 
         then:
-        result.tasks(TaskOutcome.SUCCESS)*.path.contains(':checkConfigurationCacheAllowList')
+        result.tasks(TaskOutcome.SUCCESS)*.path.contains(':checkConfigurationCacheAllowListLock')
         file('gradle/configuration-cache-allowed-tasks.lock').text.trim() == tasks.trim()
     }
 
@@ -116,7 +116,7 @@ class CheckConfigurationCacheAllowListTaskIntegrationSpec extends ConfigurationC
         given:
         file('gradle/configuration-cache-allowed-tasks') << '''
             classes
-            checkConfigurationCacheAllowList
+            checkConfigurationCacheAllowListLock
             :jar
         '''.stripIndent(true)
 
@@ -126,26 +126,27 @@ class CheckConfigurationCacheAllowListTaskIntegrationSpec extends ConfigurationC
             :compileTestJava
             :test
             :dryRunConfigurationCacheAllowList
-            :checkConfigurationCacheAllowList
+            :checkConfigurationCacheAllowListLock
         '''.stripIndent(true)
 
         when:
-        def result = runTasksAndFailWithConfigurationCache('checkConfigurationCacheAllowList')
+        def result = runTasksAndFailWithConfigurationCache('checkConfigurationCacheAllowListLock')
 
         then:
-        result.tasks(TaskOutcome.FAILED)*.path.contains(':checkConfigurationCacheAllowList')
+        result.tasks(TaskOutcome.FAILED)*.path.contains(':checkConfigurationCacheAllowListLock')
         result.output.contains('Lock file does not match the tasks that would run')
         result.output.contains('Total tasks in lock file: 5')
         result.output.contains('Total tasks that would execute: 6')
 
         then:
-        runTasksWithConfigurationCache('checkConfigurationCacheAllowList', '--fix')
+        runTasksWithConfigurationCache('checkConfigurationCacheAllowListLock', '--fix')
         file('gradle/configuration-cache-allowed-tasks.lock').text.trim() == '''
-            :checkConfigurationCacheAllowList
+            :checkConfigurationCacheAllowListLock
             :classes
             :compileJava
             :dryRunConfigurationCacheAllowList
             :jar
-            :processResources'''.stripIndent(true).trim()
+            :processResources
+            '''.stripIndent(true).trim()
     }
 }
