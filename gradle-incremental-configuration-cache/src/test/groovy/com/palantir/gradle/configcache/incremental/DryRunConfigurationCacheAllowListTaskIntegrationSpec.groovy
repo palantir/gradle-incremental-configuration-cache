@@ -88,8 +88,9 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
             :dryRunConfigurationCacheAllowList
         '''.stripIndent(true)
 
+        //language=gradle
         buildFile << '''
-            task problematicTask {
+            tasks.register('problematicTask'){
                 'echo test'.execute() // Configuration cache problem at configuration time
             }
         '''.stripIndent(true)
@@ -112,8 +113,9 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
             :dryRunConfigurationCacheAllowList
         '''.stripIndent(true)
 
+        //language=gradle
         buildFile << '''
-            task problematicTask {
+            tasks.register('problematicTask'){
                 'echo test'.execute() // Configuration cache problem at configuration time
             }
         '''.stripIndent(true)
