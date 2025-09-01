@@ -75,9 +75,13 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
             :dryRunConfigurationCacheAllowList
         '''.stripIndent(true)
 
+        // language=gradle
         buildFile << '''
-            task problematicTask {
-                'echo test'.execute() // Configuration cache problem at configuration time
+            tasks.register('problematicTask'){
+                def proj = project
+                doLast {
+                    println "Project: ${proj.name}"
+                }
             }
         '''.stripIndent(true)
 
@@ -96,9 +100,13 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
             :dryRunConfigurationCacheAllowList
         '''.stripIndent(true)
 
+        // language=gradle
         buildFile << '''
-            task problematicTask {
-                'echo test'.execute() // Configuration cache problem at configuration time
+            tasks.register('problematicTask'){
+                def proj = project
+                doLast {
+                    println "Project: ${proj.name}"
+                }
             }
         '''.stripIndent(true)
 
