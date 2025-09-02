@@ -99,7 +99,10 @@ public abstract class CheckConfigurationCacheAllowListTask extends DefaultTask {
 
         StringBuilder diffMessage = new StringBuilder();
         diffMessage.append(
-                "Lock file does not match the tasks that would run. Run `./gradlew :checkConfigurationCacheAllowListLock --fix` to update the lock file.\n\n");
+                """
+                Lock file does not match the tasks that would run.
+                Run `./gradlew :checkConfigurationCacheAllowListLock --fix` to update the lock file.
+                """);
 
         if (!inLockNotInDryRun.isEmpty()) {
             diffMessage.append("Tasks in lock file but NOT executed (may have been removed or renamed):\n");

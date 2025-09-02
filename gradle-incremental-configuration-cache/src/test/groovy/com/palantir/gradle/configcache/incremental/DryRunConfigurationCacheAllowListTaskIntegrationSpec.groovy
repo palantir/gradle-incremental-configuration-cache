@@ -47,7 +47,7 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
         file('gradle/configuration-cache-allowed-tasks') << ''
 
         when:
-        def result = runTasksWithConfigurationCacheAndCheck('dryRunConfigurationCacheAllowList', '--info')
+        def result = runTasksWithConfigurationCacheAndCheck('dryRunConfigurationCacheAllowList', '--info', '-x', 'checkConfigurationCacheAllowListLock')
 
         then:
         result.task(':dryRunConfigurationCacheAllowList').outcome == TaskOutcome.SUCCESS
@@ -62,23 +62,27 @@ class DryRunConfigurationCacheAllowListTaskIntegrationSpec extends Configuration
     def 'dry run compatible tasks successfully'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << '''
-            :classes
-            :compileJava
+            :checkConfigurationCacheAllowListLock
+            classes
             :dryRunConfigurationCacheAllowList
-            :processResources
         '''.stripIndent(true)
 
         when:
-        def result = runTasksWithConfigurationCacheAndCheck('dryRunConfigurationCacheAllowList', '--info')
+        def result = runTasksWithConfigurationCacheAndCheck('dryRunConfigurationCacheAllowList', '--info', '-x', 'checkConfigurationCacheAllowListLock')
 
         then:
         result.task(':dryRunConfigurationCacheAllowList').outcome == TaskOutcome.SUCCESS
-        result.output.contains('All 4 tasks passed configuration cache validation')
+        result.output.contains('All 3 tasks passed configuration cache validation')
 
         and:
         def outputFile = new File(projectDir, 'build/tmp/dryRunConfigurationCacheAllowList/dry-run-tasks.txt')
         outputFile.exists()
-        outputFile.text.trim() == file('gradle/configuration-cache-allowed-tasks').text.trim()
+        outputFile.text.trim() == '''
+                                    :checkConfigurationCacheAllowListLock
+                                    :classes
+                                    :compileJava
+                                    :dryRunConfigurationCacheAllowList
+                                    :processResources'''.stripIndent(true).trim()
     }
 
     def 'fails dry run for incompatible tasks'() {
