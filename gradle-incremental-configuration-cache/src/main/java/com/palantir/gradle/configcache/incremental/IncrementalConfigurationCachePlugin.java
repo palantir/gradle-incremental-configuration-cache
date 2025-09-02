@@ -100,8 +100,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                 });
 
         // Always run CheckConfigurationCacheAllowListTask after DryRunConfigurationCacheAllowListTask
-        // to catch edge cases like empty lock files. Without this, dry-run could pass (since all tasks
-        // are marked incompatible when lock is empty) while the CheckConfigurationCacheAllowListTask would fail.
+        // both tasks must run to ensure there are no issues present
         dryRunAllowList.configure(task -> task.finalizedBy(checkAllowList));
 
         project.getPluginManager().apply(LifecycleBasePlugin.class);
