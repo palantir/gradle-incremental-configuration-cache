@@ -80,7 +80,7 @@ class CheckConfigurationCacheLockIntegrationSpec extends ConfigurationCacheSpec 
         file('gradle/configuration-cache-allowed-tasks.lock') << tasks
 
         when:
-        def result = runTasksWithConfigurationCacheAndCheck('checkConfigurationCacheLock')
+        def result = runTasksWithConfigurationCache('checkConfigurationCacheLock')
 
         then:
         result.tasks(TaskOutcome.SUCCESS)*.path.contains(':checkConfigurationCacheLock')
@@ -114,7 +114,7 @@ class CheckConfigurationCacheLockIntegrationSpec extends ConfigurationCacheSpec 
         file('gradle/configuration-cache-allowed-tasks.lock') << tasks
 
         when:
-        def result = runTasksWithConfigurationCacheAndCheck('checkConfigurationCacheLock', '-Penv=remote')
+        def result = runTasksWithConfigurationCache('checkConfigurationCacheLock')
 
         then:
         result.tasks(TaskOutcome.SUCCESS)*.path.contains(':checkConfigurationCacheLock')
