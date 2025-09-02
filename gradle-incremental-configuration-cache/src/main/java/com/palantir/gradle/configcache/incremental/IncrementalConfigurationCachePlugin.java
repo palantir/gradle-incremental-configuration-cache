@@ -27,7 +27,10 @@ import org.apache.commons.io.FileUtils;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.file.ProjectLayout;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.Nested;
+import org.gradle.api.tasks.TaskProvider;
+import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.util.GradleVersion;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +38,8 @@ import org.slf4j.LoggerFactory;
 public abstract class IncrementalConfigurationCachePlugin implements Plugin<Project> {
     private static final Logger log = LoggerFactory.getLogger(IncrementalConfigurationCachePlugin.class);
 
-    private static final Path ALLOW_LIST_FILE = Path.of("gradle/configuration-cache-allowed-tasks");
+    private static final Path TARGET_TASKS_FILE = Path.of("gradle/configuration-cache-allowed-tasks");
+    private static final Path LOCK_FILE = Path.of("gradle/configuration-cache-allowed-tasks.lock");
     private static final GradleVersion MIN_GRADLE_VERSION = GradleVersion.version("8.12.0");
 
     @Inject
@@ -57,22 +61,38 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                             .formatted(MIN_GRADLE_VERSION));
         }
 
-        Path allowListPath = project.getRootProject().getProjectDir().toPath().resolve(ALLOW_LIST_FILE);
-        if (!Files.exists(allowListPath)) {
+        Path targetTasksPath = project.getRootProject().getProjectDir().toPath().resolve(TARGET_TASKS_FILE);
+        Path lockFilePath = project.getRootProject().getProjectDir().toPath().resolve(LOCK_FILE);
+        if (!Files.exists(targetTasksPath)) {
             throw new RuntimeException(
-                    "Configuration cache allowed tasks file not found at %s".formatted(allowListPath));
+                    "Configuration cache allowed tasks file not found at %s".formatted(targetTasksPath));
         }
 
-        AllowListFile allowList = new AllowListFile(allowListPath);
-        Set<String> enabledTasks = allowList.loadAllowedTasks();
+        TaskListFile lockList = new TaskListFile(lockFilePath);
+        Set<String> enabledTasks = lockList.loadTasks();
+
+        Provider<Boolean> withoutConfigurationCache = project.getProviders()
+                .gradleProperty("DISABLE_CONFIGURATION_CACHE")
+                .map(Boolean::parseBoolean)
+                .orElse(false);
 
         project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
-            if (!enabledTasks.contains(task.getPath())) {
+            if (!enabledTasks.contains(task.getPath()) || withoutConfigurationCache.get()) {
                 task.notCompatibleWithConfigurationCache(
                         "Configuration cache is not enabled for this task, as it was not included in %s"
-                                .formatted(ALLOW_LIST_FILE));
+                                .formatted(TARGET_TASKS_FILE));
             }
         }));
+
+        TaskProvider<CheckConfigurationCacheLockTask> checkLock = project.getTasks()
+                .register("checkConfigurationCacheLock", CheckConfigurationCacheLockTask.class, task -> {
+                    task.getLock().set(lockList);
+                    task.getShouldFix().set(false);
+                    task.getTasks().set(new TaskListFile(targetTasksPath).loadTasks());
+                });
+
+        project.getPluginManager().apply(LifecycleBasePlugin.class);
+        project.getTasks().named("check").configure(task -> task.dependsOn(checkLock));
 
         ensureReportsDirIsSymlinkedToCircleArtifacts();
     }

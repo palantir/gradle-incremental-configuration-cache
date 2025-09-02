@@ -10,6 +10,7 @@ dependencies {
 
     implementation 'com.palantir.gradle.utils:environment-variables'
     implementation 'commons-io:commons-io'
+    implementation 'com.google.guava:guava'
 
     testImplementation gradleTestKit()
     testImplementation 'com.netflix.nebula:nebula-test'

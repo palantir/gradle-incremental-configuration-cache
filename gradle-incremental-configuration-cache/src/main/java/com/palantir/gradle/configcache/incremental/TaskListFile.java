@@ -18,30 +18,41 @@ package com.palantir.gradle.configcache.incremental;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-public final class AllowListFile {
-    private final Path path;
+public record TaskListFile(Path path) {
 
-    public AllowListFile(Path path) {
-        this.path = path;
-
+    public Set<String> loadTasks() {
         if (!Files.exists(path)) {
-            throw new RuntimeException("AllowListFile does not exist at " + path);
+            return new TreeSet<>();
         }
-    }
 
-    public Set<String> loadAllowedTasks() {
         try {
             return Files.readAllLines(path).stream()
                     .map(String::trim)
                     .filter(line -> !line.isEmpty() && !line.startsWith("#"))
-                    .collect(Collectors.toSet());
+                    .collect(Collectors.toCollection(TreeSet::new));
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to read configuration cache allowed tasks file: " + path, e);
+        }
+    }
+
+    public static void write(Path path, Set<String> tasks) {
+        try {
+            Files.write(
+                    path,
+                    tasks,
+                    StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to write to allow list file at " + path, e);
         }
     }
 }
