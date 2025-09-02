@@ -149,4 +149,45 @@ class CheckConfigurationCacheAllowListTaskIntegrationSpec extends ConfigurationC
             :processResources
             '''.stripIndent(true).trim()
     }
+
+
+    def 'checkConfigurationCacheAllowListLock fails when sub-project added then fix works'() {
+        given:
+        def tasks = '''
+            :classes
+            :compileJava
+            :checkConfigurationCacheAllowListLock
+            :dryRunConfigurationCacheAllowList
+            :processResources
+        '''.stripIndent(true)
+
+        file('gradle/configuration-cache-allowed-tasks') << '''
+            classes
+            checkConfigurationCacheAllowListLock
+        '''.stripIndent(true)
+        file('gradle/configuration-cache-allowed-tasks.lock') << tasks
+
+        addSubproject("subproject")
+        //language=gradle
+        file('subproject/build.gradle') << '''
+            apply plugin: 'java-library'
+        '''.stripIndent(true)
+
+        when:
+        def result = runTasksAndFailWithConfigurationCache('checkConfigurationCacheAllowListLock')
+
+        then:
+        result.tasks(TaskOutcome.FAILED)*.path.contains(':checkConfigurationCacheAllowListLock')
+        result.output.contains('Lock file does not match the tasks that would run')
+
+        when:
+        def fixResult = runTasksWithConfigurationCache('checkConfigurationCacheAllowListLock', '--fix')
+
+        then:
+        fixResult.tasks(TaskOutcome.SUCCESS)*.path.contains(':checkConfigurationCacheAllowListLock')
+        def lockContent = file('gradle/configuration-cache-allowed-tasks.lock').text
+        lockContent.contains(':classes')
+        lockContent.contains(':subproject:classes')
+        lockContent.contains(':subproject:compileJava')
+    }
 }
