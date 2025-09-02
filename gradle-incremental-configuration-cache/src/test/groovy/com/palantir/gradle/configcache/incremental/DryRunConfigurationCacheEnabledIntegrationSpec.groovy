@@ -89,7 +89,7 @@ class DryRunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCache
         '''.stripIndent(true)
 
         when:
-        def result = runTasksAndFail('dryRunConfigurationCacheEnabledTasks')
+        def result = runTasksAndFailWithConfigurationCache('dryRunConfigurationCacheEnabledTasks')
 
         then:
         result.tasks(TaskOutcome.FAILED)*.path.contains(':dryRunConfigurationCacheEnabledTasks')
@@ -114,7 +114,7 @@ class DryRunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCache
         '''.stripIndent(true)
 
         when:
-        def result = runTasksAndFail('dryRunConfigurationCacheEnabledTasks',
+        def result = runTasksAndFailWithConfigurationCache('dryRunConfigurationCacheEnabledTasks',
                 '-P__TESTING_CIRCLECI=true',
                 '-P__TESTING_CIRCLE_ARTIFACTS=' + getProjectDir().toPath().resolve('circle-artifacts'),
                 '-P__TESTING_CIRCLE_PROJECT_USERNAME=test-username',

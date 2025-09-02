@@ -16,7 +16,7 @@
 
 package com.palantir.gradle.configcache.incremental;
 
-import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;

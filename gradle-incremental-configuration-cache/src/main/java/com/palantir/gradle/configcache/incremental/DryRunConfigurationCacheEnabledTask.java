@@ -41,7 +41,7 @@ public abstract class DryRunConfigurationCacheEnabledTask extends DryRunTask {
     @TaskAction
     public final void validate() {
         try {
-            dryRun(List.of("--configuration-cache"));
+            dryRun(List.of("--configuration-cache", "-PFORCE_CONFIGURATION_CACHE"));
         } catch (DryRunException e) {
             String message = errorMessage(e.output());
             throw new RuntimeException(message);
