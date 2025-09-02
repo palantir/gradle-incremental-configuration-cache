@@ -9,6 +9,7 @@ dependencies {
     compileOnly 'org.immutables:value::annotations'
 
     implementation 'com.palantir.gradle.utils:environment-variables'
+    implementation 'com.palantir.gradle.utils:circleci-artifacts'
     implementation 'commons-io:commons-io'
     implementation 'com.google.guava:guava'
     implementation 'com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions'

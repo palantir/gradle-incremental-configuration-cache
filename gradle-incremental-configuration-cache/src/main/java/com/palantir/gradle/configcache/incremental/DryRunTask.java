@@ -71,7 +71,8 @@ public abstract class DryRunTask extends DefaultTask {
         try (ProjectConnection connection = connector.connect()) {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-            connection
+            try {
+                connection
                     .newBuild()
                     .withArguments(buildArguments())
                     .forTasks(tasks.toArray(new String[0]))
@@ -88,6 +89,9 @@ public abstract class DryRunTask extends DefaultTask {
                             .results()
                             .map(m -> m.group(1))
                             .collect(Collectors.toCollection(TreeSet::new)));
+            } catch (Exception e) {
+                throw new DryRunException("Failed to dry run tasks: " + String.join(",", tasks), e, outputStream);
+            }
         }
     }
 
@@ -107,5 +111,19 @@ public abstract class DryRunTask extends DefaultTask {
 
     public final Set<String> dryRunResult() {
         return new TaskListFile(getDryRunResult().getAsFile().get().toPath()).loadTasks();
+    }
+
+    public static class DryRunException extends RuntimeException {
+
+        private final ByteArrayOutputStream output;
+
+        public DryRunException(String message, Throwable cause, ByteArrayOutputStream outputStream) {
+            super(message, cause);
+            this.output = outputStream;
+        }
+
+        public final ByteArrayOutputStream output() {
+            return output;
+        }
     }
 }

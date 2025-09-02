@@ -78,8 +78,13 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                     task.getLockFile().from(lockFilePath.toFile());
                 });
 
+        TaskProvider<DryRunConfigurationCacheEnabledTask> dryRunTask = project.getTasks()
+                .register("dryRunConfigurationCacheEnabledTasks", DryRunConfigurationCacheEnabledTask.class, task -> {
+                    task.getTasks().set(new TaskListFile(targetTasksPath).loadTasks());
+                });
+
         project.getPluginManager().apply(LifecycleBasePlugin.class);
-        project.getTasks().named("check").configure(task -> task.dependsOn(checkLock));
+        project.getTasks().named("check").configure(task -> task.dependsOn(checkLock, dryRunTask));
 
         ensureReportsDirIsSymlinkedToCircleArtifacts();
     }
