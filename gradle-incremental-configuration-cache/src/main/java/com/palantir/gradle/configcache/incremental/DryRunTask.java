@@ -39,7 +39,7 @@ import org.gradle.tooling.ProjectConnection;
 public abstract class DryRunTask extends DefaultTask {
 
     @Input
-    public abstract SetProperty<String> getTasks();
+    public abstract SetProperty<String> getTasksToDryRun();
 
     @Input
     public abstract ListProperty<String> getArguments();
@@ -56,7 +56,7 @@ public abstract class DryRunTask extends DefaultTask {
 
     @TaskAction
     public final void dryRun() {
-        Set<String> tasks = getTasks().get();
+        Set<String> tasks = getTasksToDryRun().get();
 
         if (tasks.isEmpty()) {
             getLogger().info("No tasks to dry-run");

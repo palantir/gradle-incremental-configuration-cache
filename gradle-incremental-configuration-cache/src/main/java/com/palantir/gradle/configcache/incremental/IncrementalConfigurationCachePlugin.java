@@ -76,7 +76,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
         TaskProvider<CheckConfigurationCacheLockTask> checkLock = project.getTasks()
                 .register("checkConfigurationCacheLock", CheckConfigurationCacheLockTask.class, task -> {
-                    task.getTasks().set(new TaskListFile(targetTasksPath).loadTasks());
+                    task.getTasksToDryRun().set(new TaskListFile(targetTasksPath).loadTasks());
                     task.getArguments().set(List.of("--quiet", "-Pconfiguration-cache-incompatible-for-all-tasks"));
                     task.getDryRunResult()
                             .set(task.getTemporaryDir()
@@ -84,7 +84,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                                     .resolve("dryRunNoConfigurationCache")
                                     .toFile());
 
-                    task.getLock().from(lockFilePath.toFile());
+                    task.getLockFile().from(lockFilePath.toFile());
                     task.getShouldFix().set(false);
                 });
 

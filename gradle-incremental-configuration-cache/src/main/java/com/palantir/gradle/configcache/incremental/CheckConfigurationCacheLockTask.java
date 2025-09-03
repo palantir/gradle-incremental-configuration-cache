@@ -34,7 +34,7 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
 
     @InputFiles
     @PathSensitive(PathSensitivity.RELATIVE)
-    public abstract ConfigurableFileCollection getLock();
+    public abstract ConfigurableFileCollection getLockFile();
 
     @Input
     @Option(
@@ -44,7 +44,7 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
 
     @TaskAction
     public final void check() {
-        Path lockPath = getLock().getSingleFile().toPath();
+        Path lockPath = getLockFile().getSingleFile().toPath();
         if (Files.notExists(lockPath) && !getShouldFix().get()) {
             throw new ExceptionWithSuggestion(
                     """
