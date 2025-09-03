@@ -46,7 +46,8 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
 
     @Inject
     public CheckConfigurationCacheLockTask() {
-        getArguments().set(List.of("--quiet", "-Pconfiguration-cache-incompatible-for-all-tasks"));
+        getArguments().set(List.of("--quiet", "--no-configuration-cache"));
+        getShouldFix().set(false);
         getDryRunResult()
                 .set(getTemporaryDir()
                         .toPath()

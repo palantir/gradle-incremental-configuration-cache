@@ -27,7 +27,6 @@ import org.apache.commons.io.FileUtils;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.file.ProjectLayout;
-import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
@@ -77,7 +76,6 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                 .register("checkConfigurationCacheLock", CheckConfigurationCacheLockTask.class, task -> {
                     task.getTasksToDryRun().set(new TaskListFile(targetTasksPath).loadTasks());
                     task.getLockFile().from(lockFilePath.toFile());
-                    task.getShouldFix().set(false);
                 });
 
         project.getPluginManager().apply(LifecycleBasePlugin.class);
@@ -148,11 +146,8 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
     }
 
     private void configureTaskCompatibility(Project project, Set<String> lockListTasks) {
-        Provider<String> configurationCacheIncompatibleForAllTasks =
-                project.getProviders().gradleProperty("configuration-cache-incompatible-for-all-tasks");
-
         project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
-            if (!lockListTasks.contains(task.getPath()) || configurationCacheIncompatibleForAllTasks.isPresent()) {
+            if (!lockListTasks.contains(task.getPath())) {
                 task.notCompatibleWithConfigurationCache(
                         "Configuration cache is not enabled for this task, as it was not included in %s"
                                 .formatted(TARGET_TASKS_FILE));
