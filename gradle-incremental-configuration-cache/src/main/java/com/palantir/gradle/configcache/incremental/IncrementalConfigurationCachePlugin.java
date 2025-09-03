@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Set;
 import javax.inject.Inject;
 import org.apache.commons.io.FileUtils;
@@ -75,9 +76,16 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
         TaskProvider<CheckConfigurationCacheLockTask> checkLock = project.getTasks()
                 .register("checkConfigurationCacheLock", CheckConfigurationCacheLockTask.class, task -> {
-                    task.getLock().set(lockList);
-                    task.getShouldFix().set(false);
                     task.getTasks().set(new TaskListFile(targetTasksPath).loadTasks());
+                    task.getArguments().set(List.of("--quiet", "-Pconfiguration-cache-incompatible-for-all-tasks"));
+                    task.getDryRunResult()
+                            .set(task.getTemporaryDir()
+                                    .toPath()
+                                    .resolve("dry-run-result")
+                                    .toFile());
+
+                    task.getLock().from(lockFilePath.toFile());
+                    task.getShouldFix().set(false);
                 });
 
         project.getPluginManager().apply(LifecycleBasePlugin.class);

@@ -234,4 +234,39 @@ class CheckConfigurationCacheLockIntegrationSpec extends ConfigurationCacheSpec 
         lockContent.contains(':subproject:classes')
         lockContent.contains(':subproject:compileJava')
     }
+
+    def 'checkConfigurationCacheLock is not up-to-date when lock file changes'() {
+        given:
+        def tasks = '''
+            :classes
+            :compileJava
+            :checkConfigurationCacheLock
+            :processResources
+        '''.stripIndent(true)
+
+        file('gradle/configuration-cache-allowed-tasks') << '''
+            classes
+            checkConfigurationCacheLock
+        '''.stripIndent(true)
+        file('gradle/configuration-cache-allowed-tasks.lock') << tasks
+
+        when:
+        def firstRun = runTasksWithConfigurationCache('checkConfigurationCacheLock')
+
+        then:
+        firstRun.tasks(TaskOutcome.SUCCESS)*.path.contains(':checkConfigurationCacheLock')
+
+        when:
+        def secondRun = runTasksWithConfigurationCache('checkConfigurationCacheLock')
+
+        then:
+        secondRun.tasks(TaskOutcome.UP_TO_DATE)*.path.contains(':checkConfigurationCacheLock')
+
+        when:
+        file('gradle/configuration-cache-allowed-tasks.lock').text = tasks + '\n'
+        def thirdRun = runTasksWithConfigurationCache('checkConfigurationCacheLock')
+
+        then:
+        thirdRun.tasks(TaskOutcome.SUCCESS)*.path.contains(':checkConfigurationCacheLock')
+    }
 }

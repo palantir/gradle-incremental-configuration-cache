@@ -20,17 +20,21 @@ import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.options.Option;
 
 public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
 
-    @Input
-    public abstract Property<TaskListFile> getLock();
+    @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
+    public abstract ConfigurableFileCollection getLock();
 
     @Input
     @Option(
@@ -40,8 +44,7 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
 
     @TaskAction
     public final void check() {
-        Path lockPath = getLock().get().path();
-
+        Path lockPath = getLock().getSingleFile().toPath();
         if (Files.notExists(lockPath) && !getShouldFix().get()) {
             throw new ExceptionWithSuggestion(
                     """
@@ -52,7 +55,7 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
                     "./gradlew :checkConfigurationCacheLock --fix");
         }
 
-        Set<String> dryRanTasks = dryRun(List.of("--quiet", "-Pconfiguration-cache-incompatible-for-all-tasks"));
+        Set<String> dryRanTasks = dryRunResult();
 
         if (getShouldFix().get()) {
             TaskListFile.write(lockPath, dryRanTasks);
@@ -60,7 +63,7 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
             return;
         }
 
-        Set<String> lockFileTasks = getLock().get().loadTasks();
+        Set<String> lockFileTasks = new TaskListFile(lockPath).loadTasks();
 
         if (lockFileTasks.equals(dryRanTasks)) {
             getLogger().lifecycle("Lock file is up to date with {} tasks", lockFileTasks.size());

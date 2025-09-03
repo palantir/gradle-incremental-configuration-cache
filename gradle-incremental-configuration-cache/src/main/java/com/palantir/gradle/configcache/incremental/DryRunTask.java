@@ -19,7 +19,6 @@ package com.palantir.gradle.configcache.incremental;
 import com.google.common.collect.ImmutableList;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
@@ -27,10 +26,13 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.ProjectLayout;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
-import org.gradle.tooling.GradleConnectionException;
+import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.TaskAction;
 import org.gradle.tooling.GradleConnector;
 import org.gradle.tooling.ProjectConnection;
 
@@ -40,18 +42,25 @@ public abstract class DryRunTask extends DefaultTask {
     public abstract SetProperty<String> getTasks();
 
     @Input
+    public abstract ListProperty<String> getArguments();
+
+    @Input
     @org.gradle.api.tasks.Optional
     public abstract Property<String> getInitScript();
 
     @Inject
     protected abstract ProjectLayout getProjectLayout();
 
-    public final Set<String> dryRun(List<String> args) throws GradleConnectionException {
+    @OutputFile
+    public abstract RegularFileProperty getDryRunResult();
+
+    @TaskAction
+    public final void dryRun() {
         Set<String> tasks = getTasks().get();
 
         if (tasks.isEmpty()) {
             getLogger().info("No tasks to dry-run");
-            return new TreeSet<>();
+            TaskListFile.write(getDryRunResult().getAsFile().get().toPath(), new TreeSet<>());
         }
 
         getLogger().info("Dry-running {} tasks", tasks.size());
@@ -64,7 +73,7 @@ public abstract class DryRunTask extends DefaultTask {
 
             connection
                     .newBuild()
-                    .withArguments(buildArguments(args))
+                    .withArguments(buildArguments())
                     .forTasks(tasks.toArray(new String[0]))
                     .setStandardOutput(outputStream)
                     .setStandardError(outputStream)
@@ -72,18 +81,20 @@ public abstract class DryRunTask extends DefaultTask {
 
             getLogger().info("All {} tasks passed dry-ran successfully", tasks.size());
 
-            return Pattern.compile("(:[\\w:-]+)\\s+SKIPPED")
-                    .matcher(outputStream.toString(StandardCharsets.UTF_8))
-                    .results()
-                    .map(m -> m.group(1))
-                    .collect(Collectors.toCollection(TreeSet::new));
+            TaskListFile.write(
+                    getDryRunResult().getAsFile().get().toPath(),
+                    Pattern.compile("(:[\\w:-]+)\\s+SKIPPED")
+                            .matcher(outputStream.toString(StandardCharsets.UTF_8))
+                            .results()
+                            .map(m -> m.group(1))
+                            .collect(Collectors.toCollection(TreeSet::new)));
         }
     }
 
-    private ImmutableList<String> buildArguments(List<String> args) {
+    private ImmutableList<String> buildArguments() {
         ImmutableList.Builder<String> argumentsBuilder = ImmutableList.builder();
         argumentsBuilder.add("--dry-run");
-        argumentsBuilder.addAll(args);
+        argumentsBuilder.addAll(getArguments().get());
 
         // GradleConnector runs builds in a separate process, so we must explicitly pass init scripts.
         // This is required for Nebula tests, which rely on init scripts for test setup.
@@ -92,5 +103,9 @@ public abstract class DryRunTask extends DefaultTask {
         }
 
         return argumentsBuilder.build();
+    }
+
+    public final Set<String> dryRunResult() {
+        return new TaskListFile(getDryRunResult().getAsFile().get().toPath()).loadTasks();
     }
 }
