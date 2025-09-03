@@ -39,4 +39,34 @@ The plugin only disables Configuration Cache for tasks. If your configuration ph
 
 ## Configuration
 
-The only external dependency is the plain text file `gradle/configuration-cache-allowed-tasks` at the root of your project.  
+This plugin uses a two-file system to manage which tasks run with configuration cache enabled:
+
+### `gradle/configuration-cache-allowed-tasks`
+A plain text file containing high-level task names you want to enable for configuration cache. For example:
+```
+classes
+test
+jar
+```
+
+### `gradle/configuration-cache-allowed-tasks.lock`
+An auto-generated lock file containing the exact task paths that will run when executing the tasks from the allowed-tasks file. This file is automatically maintained by the `checkConfigurationCacheLock` task.
+
+### Managing the lock file
+
+The plugin provides a `checkConfigurationCacheLock` task that:
+- **Validates** the lock file matches what would actually execute (runs automatically as part of `check`)
+- **Updates** the lock file when run with `--fix` flag
+
+#### Updating after project changes
+When you add subprojects, rename tasks, or modify task dependencies:
+```bash
+# Update the lock file to match the new project structure
+./gradlew checkConfigurationCacheLock --fix
+```
+
+#### CI validation
+The `checkConfigurationCacheLock` task is automatically added to the `check` lifecycle task, ensuring your lock file stays up-to-date:
+```bash
+./gradlew check  # Fails if lock file is out of date
+```

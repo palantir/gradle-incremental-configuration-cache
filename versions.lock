@@ -1,26 +1,44 @@
 # Run ./gradlew writeVersionsLocks to regenerate this file. Blank lines are to minimize merge conflicts.
 
+com.fasterxml.jackson.core:jackson-annotations:2.19.2 (2 constraints: ff291615)
+
+com.fasterxml.jackson.core:jackson-core:2.19.2 (2 constraints: ff291615)
+
+com.fasterxml.jackson.core:jackson-databind:2.19.2 (1 constraints: 7217b53d)
+
+com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.19.2 (1 constraints: 3d1b2b47)
+
+com.fasterxml.woodstox:woodstox-core:7.1.1 (1 constraints: 3d174926)
+
+com.google.errorprone:error_prone_annotations:2.36.0 (1 constraints: 4d0a49bf)
+
+com.google.guava:failureaccess:1.0.3 (1 constraints: 160ae3b4)
+
+com.google.guava:guava:33.4.8-jre (3 constraints: 913b16ca)
+
+com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava (1 constraints: bd17c918)
+
+com.google.j2objc:j2objc-annotations:3.0.0 (1 constraints: 150aeab4)
+
+com.palantir.gradle.failure-reports:gradle-failure-reports-common:1.15.0 (1 constraints: ef1c32c2)
+
+com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions:1.15.0 (1 constraints: 3905383b)
+
 com.palantir.gradle.utils:environment-variables:0.18.0 (1 constraints: 3b053b3b)
 
 commons-io:commons-io:2.20.0 (1 constraints: 3605333b)
 
+org.codehaus.woodstox:stax2-api:4.2.2 (2 constraints: 6a278bd2)
+
 org.immutables:value:2.11.3 (1 constraints: 3905353b)
+
+org.jspecify:jspecify:1.0.0 (1 constraints: 130ae0b4)
 
 
 
 [Test dependencies]
 
 cglib:cglib-nodep:3.2.2 (1 constraints: 490ded24)
-
-com.google.errorprone:error_prone_annotations:2.36.0 (1 constraints: 4d0a49bf)
-
-com.google.guava:failureaccess:1.0.3 (1 constraints: 160ae3b4)
-
-com.google.guava:guava:33.4.8-jre (1 constraints: 3218d16b)
-
-com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava (1 constraints: bd17c918)
-
-com.google.j2objc:j2objc-annotations:3.0.0 (1 constraints: 150aeab4)
 
 com.netflix.nebula:nebula-test:10.6.2 (2 constraints: d61de72d)
 
@@ -37,8 +55,6 @@ org.codehaus.groovy:groovy:3.0.25 (3 constraints: 14347add)
 org.hamcrest:hamcrest:2.2 (1 constraints: d20cdc04)
 
 org.hamcrest:hamcrest-core:1.3 (1 constraints: cc05fe3f)
-
-org.jspecify:jspecify:1.0.0 (1 constraints: 130ae0b4)
 
 org.junit.jupiter:junit-jupiter:5.13.4 (1 constraints: 7e074077)
 

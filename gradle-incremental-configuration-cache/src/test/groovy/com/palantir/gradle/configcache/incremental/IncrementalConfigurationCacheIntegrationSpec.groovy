@@ -17,12 +17,11 @@ package com.palantir.gradle.configcache.incremental
 
 import com.palantir.gradle.plugintesting.ConfigurationCacheSpec
 import groovy.io.FileType
-import nebula.test.IntegrationTestKitSpec
 
 import java.nio.file.Files
 
 
-class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
+class IncrementalConfigurationCacheIntegrationSpec extends ConfigurationCacheSpec {
     def setup() {
         // language=gradle
         buildFile << '''
@@ -71,8 +70,9 @@ class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
     }
 
 
-    def "tasks in allow list run with config cache"() {
-        file("gradle/configuration-cache-allowed-tasks") << '''
+    def "tasks in lock run with config cache"() {
+        file("gradle/configuration-cache-allowed-tasks")
+        file("gradle/configuration-cache-allowed-tasks.lock") << '''
             :compileJava
             :processResources
             :classes
@@ -82,8 +82,9 @@ class IncrementalConfigurationCacheTest extends ConfigurationCacheSpec {
         runTasksWithConfigurationCacheAndCheck("classes")
     }
 
-    def "tasks not in allow list don't run with config cache"() {
-        file("gradle/configuration-cache-allowed-tasks") << '''
+    def "tasks not in lock don't run with config cache"() {
+        file("gradle/configuration-cache-allowed-tasks")
+        file("gradle/configuration-cache-allowed-tasks.lock") << '''
             :compileJava
             :processResources
         '''.stripIndent(true)
