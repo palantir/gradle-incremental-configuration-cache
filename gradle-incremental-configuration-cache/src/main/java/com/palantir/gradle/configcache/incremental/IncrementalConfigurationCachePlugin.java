@@ -81,7 +81,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                     task.getDryRunResult()
                             .set(task.getTemporaryDir()
                                     .toPath()
-                                    .resolve("dry-run-result")
+                                    .resolve("dryRunNoConfigurationCache")
                                     .toFile());
 
                     task.getLock().from(lockFilePath.toFile());
