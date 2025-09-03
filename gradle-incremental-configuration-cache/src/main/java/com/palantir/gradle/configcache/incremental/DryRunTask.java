@@ -33,6 +33,7 @@ import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
+import org.gradle.tooling.GradleConnectionException;
 import org.gradle.tooling.GradleConnector;
 import org.gradle.tooling.ProjectConnection;
 
@@ -54,6 +55,11 @@ public abstract class DryRunTask extends DefaultTask {
     @OutputFile
     public abstract RegularFileProperty getDryRunResult();
 
+    /**
+     * Performs the dry-run of the specified tasks using the Gradle Tooling API.
+     * The set of tasks that would be executed is written to {@link #getDryRunResult()}.
+     * If no tasks are specified, writes an empty result.
+     */
     @TaskAction
     public void dryRun() {
         Set<String> tasks = getTasksToDryRun().get();
@@ -89,7 +95,7 @@ public abstract class DryRunTask extends DefaultTask {
                                 .results()
                                 .map(m -> m.group(1))
                                 .collect(Collectors.toCollection(TreeSet::new)));
-            } catch (Exception e) {
+            } catch (GradleConnectionException e) {
                 throw new DryRunException("Failed to dry run tasks: " + String.join(",", tasks), e, outputStream);
             }
         }
