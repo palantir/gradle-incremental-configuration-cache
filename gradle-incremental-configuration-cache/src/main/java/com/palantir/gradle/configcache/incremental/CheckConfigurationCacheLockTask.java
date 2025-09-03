@@ -17,13 +17,11 @@
 package com.palantir.gradle.configcache.incremental;
 
 import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.gradle.api.UncheckedIOException;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.TaskAction;
@@ -44,27 +42,24 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
     public final void check() {
         Path lockPath = getLock().get().path();
 
-        // Check if lock file exists
-        if (Files.notExists(lockPath)) {
-            if (getShouldFix().get()) {
-                getLogger().info("Creating missing lock file at {}", lockPath);
-                try {
-                    Files.createFile(lockPath);
-                } catch (IOException e) {
-                    throw new UncheckedIOException("Failed to create lock file", e);
-                }
-            } else {
-                throw new ExceptionWithSuggestion(
-                        """
-                    Lock file does not exist at %s.
-                    Run `./gradlew :checkConfigurationCacheLock --fix` to create the lock file.
+        if (Files.notExists(lockPath) && !getShouldFix().get()) {
+            throw new ExceptionWithSuggestion(
                     """
-                                .formatted(lockPath),
-                        "./gradlew :checkConfigurationCacheLock --fix");
-            }
+                Lock file does not exist at %s.
+                Run `./gradlew :checkConfigurationCacheLock --fix` to create the lock file.
+                """
+                            .formatted(lockPath),
+                    "./gradlew :checkConfigurationCacheLock --fix");
         }
 
         Set<String> dryRanTasks = dryRun(List.of("--quiet", "-Pconfiguration-cache-compatible-for-all-tasks"));
+
+        if (getShouldFix().get()) {
+            TaskListFile.write(lockPath, dryRanTasks);
+            getLogger().lifecycle("Lock file updated with {} tasks", dryRanTasks.size());
+            return;
+        }
+
         Set<String> lockFileTasks = getLock().get().loadTasks();
 
         if (lockFileTasks.equals(dryRanTasks)) {
@@ -72,20 +67,14 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
             return;
         }
 
-        // Find differences
         Set<String> inLockNotInDryRun = new HashSet<>(lockFileTasks);
         inLockNotInDryRun.removeAll(dryRanTasks);
 
         Set<String> inDryRunNotInLock = new HashSet<>(dryRanTasks);
         inDryRunNotInLock.removeAll(lockFileTasks);
 
-        if (getShouldFix().get()) {
-            TaskListFile.write(lockPath, dryRanTasks);
-        } else {
-            String diffMessage =
-                    buildLockFileDiffMessage(lockFileTasks, dryRanTasks, inLockNotInDryRun, inDryRunNotInLock);
-            throw new RuntimeException(diffMessage);
-        }
+        String diffMessage = buildLockFileDiffMessage(lockFileTasks, dryRanTasks, inLockNotInDryRun, inDryRunNotInLock);
+        throw new RuntimeException(diffMessage);
     }
 
     private String buildLockFileDiffMessage(
