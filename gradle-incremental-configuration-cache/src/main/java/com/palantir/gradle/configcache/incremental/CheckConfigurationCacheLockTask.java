@@ -22,7 +22,6 @@ import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import javax.inject.Inject;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
@@ -44,7 +43,6 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
             description = "Whether to apply the suggested fix to configuration-cache-allowed-tasks.lock")
     public abstract Property<Boolean> getShouldFix();
 
-    @Inject
     public CheckConfigurationCacheLockTask() {
         getArguments().set(List.of("--quiet", "--no-configuration-cache"));
         getShouldFix().set(false);
