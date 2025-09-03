@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Set;
 import javax.inject.Inject;
 import org.apache.commons.io.FileUtils;
@@ -42,8 +41,6 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
     private static final Path TARGET_TASKS_FILE = Path.of("gradle/configuration-cache-allowed-tasks");
     private static final Path LOCK_FILE = Path.of("gradle/configuration-cache-allowed-tasks.lock");
     private static final GradleVersion MIN_GRADLE_VERSION = GradleVersion.version("8.12.0");
-    private static final String CONFIGURATION_CACHE_INCOMPATIBLE_FOR_ALL_TASKS =
-            "configuration-cache-incompatible-for-all-tasks";
 
     @Inject
     protected abstract ProjectLayout getProjectLayout();
@@ -79,13 +76,6 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         TaskProvider<CheckConfigurationCacheLockTask> checkLock = project.getTasks()
                 .register("checkConfigurationCacheLock", CheckConfigurationCacheLockTask.class, task -> {
                     task.getTasksToDryRun().set(new TaskListFile(targetTasksPath).loadTasks());
-                    task.getArguments().set(List.of("--quiet", "-P" + CONFIGURATION_CACHE_INCOMPATIBLE_FOR_ALL_TASKS));
-                    task.getDryRunResult()
-                            .set(task.getTemporaryDir()
-                                    .toPath()
-                                    .resolve("dryRunNoConfigurationCache")
-                                    .toFile());
-
                     task.getLockFile().from(lockFilePath.toFile());
                     task.getShouldFix().set(false);
                 });
@@ -159,7 +149,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
     private void configureTaskCompatibility(Project project, Set<String> lockListTasks) {
         Provider<String> configurationCacheIncompatibleForAllTasks =
-                project.getProviders().gradleProperty(CONFIGURATION_CACHE_INCOMPATIBLE_FOR_ALL_TASKS);
+                project.getProviders().gradleProperty("configuration-cache-incompatible-for-all-tasks");
 
         project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
             if (!lockListTasks.contains(task.getPath()) || configurationCacheIncompatibleForAllTasks.isPresent()) {
