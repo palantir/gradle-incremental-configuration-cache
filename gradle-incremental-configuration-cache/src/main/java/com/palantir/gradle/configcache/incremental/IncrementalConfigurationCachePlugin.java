@@ -71,11 +71,11 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         TaskListFile lockList = new TaskListFile(lockFilePath);
         Set<String> lockListTasks = lockList.loadTasks();
 
-        Provider<String> withoutConfigurationCache =
+        Provider<String> configurationCacheForAllTasks =
                 project.getProviders().gradleProperty("configuration-cache-compatible-for-all-tasks");
 
         project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
-            if (!lockListTasks.contains(task.getPath()) || withoutConfigurationCache.isPresent()) {
+            if (!lockListTasks.contains(task.getPath()) || configurationCacheForAllTasks.isPresent()) {
                 task.notCompatibleWithConfigurationCache(
                         "Configuration cache is not enabled for this task, as it was not included in %s"
                                 .formatted(TARGET_TASKS_FILE));
