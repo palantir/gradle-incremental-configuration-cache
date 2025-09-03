@@ -55,7 +55,7 @@ public abstract class DryRunTask extends DefaultTask {
     public abstract RegularFileProperty getDryRunResult();
 
     @TaskAction
-    public final void dryRun() {
+    public void dryRun() {
         Set<String> tasks = getTasksToDryRun().get();
 
         if (tasks.isEmpty()) {
@@ -73,22 +73,22 @@ public abstract class DryRunTask extends DefaultTask {
 
             try {
                 connection
-                    .newBuild()
-                    .withArguments(buildArguments())
-                    .forTasks(tasks.toArray(new String[0]))
-                    .setStandardOutput(outputStream)
-                    .setStandardError(outputStream)
-                    .run();
+                        .newBuild()
+                        .withArguments(buildArguments())
+                        .forTasks(tasks.toArray(new String[0]))
+                        .setStandardOutput(outputStream)
+                        .setStandardError(outputStream)
+                        .run();
 
-            getLogger().info("All {} tasks passed dry-ran successfully", tasks.size());
+                getLogger().info("All {} tasks passed dry-ran successfully", tasks.size());
 
-            TaskListFile.write(
-                    getDryRunResult().getAsFile().get().toPath(),
-                    Pattern.compile("(:[\\w:-]+)\\s+SKIPPED")
-                            .matcher(outputStream.toString(StandardCharsets.UTF_8))
-                            .results()
-                            .map(m -> m.group(1))
-                            .collect(Collectors.toCollection(TreeSet::new)));
+                TaskListFile.write(
+                        getDryRunResult().getAsFile().get().toPath(),
+                        Pattern.compile("(:[\\w:-]+)\\s+SKIPPED")
+                                .matcher(outputStream.toString(StandardCharsets.UTF_8))
+                                .results()
+                                .map(m -> m.group(1))
+                                .collect(Collectors.toCollection(TreeSet::new)));
             } catch (Exception e) {
                 throw new DryRunException("Failed to dry run tasks: " + String.join(",", tasks), e, outputStream);
             }

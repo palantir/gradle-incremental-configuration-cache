@@ -80,7 +80,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
         TaskProvider<DryRunConfigurationCacheEnabledTask> dryRunTask = project.getTasks()
                 .register("dryRunConfigurationCacheEnabledTasks", DryRunConfigurationCacheEnabledTask.class, task -> {
-                    task.getTasks().set(new TaskListFile(targetTasksPath).loadTasks());
+                    task.getTasksToDryRun().set(new TaskListFile(targetTasksPath).loadTasks());
                 });
 
         project.getPluginManager().apply(LifecycleBasePlugin.class);
@@ -151,6 +151,12 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
     }
 
     private void configureTaskCompatibility(Project project, Set<String> lockListTasks) {
+        if (project.getProviders()
+                .gradleProperty("configuration-cache-compatible-for-all-tasks")
+                .isPresent()) {
+            return;
+        }
+
         project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
             if (!lockListTasks.contains(task.getPath())) {
                 task.notCompatibleWithConfigurationCache(

@@ -38,10 +38,20 @@ public abstract class DryRunConfigurationCacheEnabledTask extends DryRunTask {
     @Nested
     protected abstract CircleCiArtifacts getCircleCiArtifacts();
 
+    public DryRunConfigurationCacheEnabledTask() {
+        getArguments().set(List.of("--configuration-cache", "-Pconfiguration-cache-compatible-for-all-tasks"));
+        getDryRunResult()
+                .set(getTemporaryDir()
+                        .toPath()
+                        .resolve("dryRunConfigurationCache")
+                        .toFile());
+    }
+
     @TaskAction
-    public final void validate() {
+    @Override
+    public final void dryRun() {
         try {
-            dryRun(List.of("--configuration-cache", "-PFORCE_CONFIGURATION_CACHE"));
+            super.dryRun();
         } catch (DryRunException e) {
             String message = errorMessage(e.output());
             throw new RuntimeException(message);
