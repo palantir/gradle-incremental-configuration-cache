@@ -52,7 +52,7 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
                     "./gradlew :checkConfigurationCacheLock --fix");
         }
 
-        Set<String> dryRanTasks = dryRun(List.of("--quiet", "-Pconfiguration-cache-compatible-for-all-tasks"));
+        Set<String> dryRanTasks = dryRun(List.of("--quiet", "-Pconfiguration-cache-incompatible-for-all-tasks"));
 
         if (getShouldFix().get()) {
             TaskListFile.write(lockPath, dryRanTasks);

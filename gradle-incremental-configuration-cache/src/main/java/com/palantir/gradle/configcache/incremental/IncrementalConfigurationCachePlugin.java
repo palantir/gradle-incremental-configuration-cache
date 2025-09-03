@@ -71,16 +71,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         TaskListFile lockList = new TaskListFile(lockFilePath);
         Set<String> lockListTasks = lockList.loadTasks();
 
-        Provider<String> configurationCacheForAllTasks =
-                project.getProviders().gradleProperty("configuration-cache-compatible-for-all-tasks");
-
-        project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
-            if (!lockListTasks.contains(task.getPath()) || configurationCacheForAllTasks.isPresent()) {
-                task.notCompatibleWithConfigurationCache(
-                        "Configuration cache is not enabled for this task, as it was not included in %s"
-                                .formatted(TARGET_TASKS_FILE));
-            }
-        }));
+        configureTaskCompatibility(project, lockListTasks);
 
         TaskProvider<CheckConfigurationCacheLockTask> checkLock = project.getTasks()
                 .register("checkConfigurationCacheLock", CheckConfigurationCacheLockTask.class, task -> {
@@ -154,5 +145,18 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         } catch (IOException e) {
             throw new UncheckedIOException("Could not create directories to '%s'".formatted(directory), e);
         }
+    }
+
+    private void configureTaskCompatibility(Project project, Set<String> lockListTasks) {
+        Provider<String> configurationCacheIncompatibleForAllTasks =
+                project.getProviders().gradleProperty("configuration-cache-incompatible-for-all-tasks");
+
+        project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
+            if (!lockListTasks.contains(task.getPath()) || configurationCacheIncompatibleForAllTasks.isPresent()) {
+                task.notCompatibleWithConfigurationCache(
+                        "Configuration cache is not enabled for this task, as it was not included in %s"
+                                .formatted(TARGET_TASKS_FILE));
+            }
+        }));
     }
 }
