@@ -16,6 +16,7 @@
 
 package com.palantir.gradle.configcache.incremental;
 
+import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -44,7 +45,7 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
         Path lockPath = getLock().get().path();
 
         // Check if lock file exists
-        if (!Files.exists(lockPath)) {
+        if (Files.notExists(lockPath)) {
             if (getShouldFix().get()) {
                 getLogger().info("Creating missing lock file at {}", lockPath);
                 try {
@@ -53,16 +54,17 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
                     throw new UncheckedIOException("Failed to create lock file", e);
                 }
             } else {
-                throw new RuntimeException(
+                throw new ExceptionWithSuggestion(
                         """
                     Lock file does not exist at %s.
                     Run `./gradlew :checkConfigurationCacheLock --fix` to create the lock file.
                     """
-                                .formatted(lockPath));
+                                .formatted(lockPath),
+                        "./gradlew :checkConfigurationCacheLock --fix");
             }
         }
 
-        Set<String> dryRanTasks = dryRun(List.of("--quiet", "-PDISABLE_CONFIGURATION_CACHE=true"));
+        Set<String> dryRanTasks = dryRun(List.of("--quiet", "-Pconfiguration-cache-compatible-for-all-tasks"));
         Set<String> lockFileTasks = getLock().get().loadTasks();
 
         if (lockFileTasks.equals(dryRanTasks)) {
