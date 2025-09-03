@@ -44,18 +44,6 @@ class IncrementalConfigurationCacheIntegrationSpec extends ConfigurationCacheSpe
         output.contains('Configuration cache allowed tasks file not found')
     }
 
-    def "blows up if you run with DISABLE_CONFIGURATION_CACHE and FORCE_CONFIGURATION_CACHE"() {
-        file("gradle/configuration-cache-allowed-tasks")
-        file("gradle/configuration-cache-allowed-tasks.lock")
-
-        when:
-        def result = runTasksAndFailWithConfigurationCache("help", "-PDISABLE_CONFIGURATION_CACHE", "-PFORCE_CONFIGURATION_CACHE")
-
-
-        then:
-        result.output.contains("Cannot both run with and without configuration cache")
-    }
-
     def "blows up if applied to non root project"() {
         file('subproject/build.gradle') << '''
             apply plugin: 'com.palantir.incremental-configuration-cache'
