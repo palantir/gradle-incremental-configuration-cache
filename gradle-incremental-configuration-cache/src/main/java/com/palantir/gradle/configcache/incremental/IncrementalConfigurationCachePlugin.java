@@ -72,6 +72,8 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
         configureTaskCompatibility(project, lockListTasks);
 
+        configureTaskCompatibility(project, lockListTasks);
+
         TaskProvider<CheckConfigurationCacheLockTask> checkLock = project.getTasks()
                 .register("checkConfigurationCacheLock", CheckConfigurationCacheLockTask.class, task -> {
                     task.getTasksToDryRun().set(new TaskListFile(targetTasksPath).loadTasks());
