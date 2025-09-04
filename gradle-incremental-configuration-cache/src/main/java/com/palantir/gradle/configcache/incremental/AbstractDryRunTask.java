@@ -16,16 +16,27 @@
 
 package com.palantir.gradle.configcache.incremental;
 
+import com.google.common.collect.ImmutableList;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.OutputFile;
+import org.gradle.tooling.GradleConnector;
+import org.gradle.tooling.ProjectConnection;
 
 public abstract class AbstractDryRunTask extends DefaultTask {
+    private static final Pattern DRY_RUN_TASK_PATTERN = Pattern.compile("(:[\\w:-]+)\\s+SKIPPED");
 
     @Input
     public abstract SetProperty<String> getTasksToDryRun();
@@ -34,14 +45,67 @@ public abstract class AbstractDryRunTask extends DefaultTask {
     @org.gradle.api.tasks.Optional
     public abstract Property<String> getInitScript();
 
-    @Nested
-    protected abstract DryRunner getDryRunner();
+    @Inject
+    protected abstract ProjectLayout getProjectLayout();
 
     @OutputFile
     public abstract RegularFileProperty getMarkerOutputFile();
 
     protected final DryRunResult dryRun(List<String> extraArgs) {
-        return getDryRunner()
-                .dryRun(getTasksToDryRun().get(), extraArgs, getInitScript().get());
+        if (getTasksToDryRun().get().isEmpty()) {
+            getLogger().info("No tasks to dry-run");
+            return DryRunResult.success(new TreeSet<>());
+        }
+
+        getLogger().info("Dry-running {} tasks", getTasksToDryRun().get().size());
+
+        GradleConnector connector = GradleConnector.newConnector()
+                .forProjectDirectory(getProjectLayout().getProjectDirectory().getAsFile());
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(16 * 1024);
+
+        try (ProjectConnection connection = connector.connect()) {
+            connection
+                    .newBuild()
+                    .withArguments(buildArguments(extraArgs))
+                    .forTasks(getTasksToDryRun().get().toArray(new String[0]))
+                    .setStandardOutput(outputStream)
+                    .setStandardError(outputStream)
+                    .run();
+
+            getLogger()
+                    .info(
+                            "All {} tasks dry-ran successfully",
+                            getTasksToDryRun().get().size());
+
+        } catch (Exception e) {
+            getLogger().info("Failed to run Dry-run tasks", e);
+            String error = outputStream.toString(StandardCharsets.UTF_8);
+            return DryRunResult.failure(error);
+        }
+
+        Set<String> dryRunTasks = parseDryRunResult(outputStream.toString(StandardCharsets.UTF_8));
+        return DryRunResult.success(dryRunTasks);
+    }
+
+    private ImmutableList<String> buildArguments(List<String> arguments) {
+        ImmutableList.Builder<String> argumentsBuilder = ImmutableList.builder();
+        argumentsBuilder.add("--dry-run");
+        argumentsBuilder.add("--console=plain");
+        if (arguments != null) {
+            argumentsBuilder.addAll(arguments);
+        }
+        if (getInitScript().isPresent() && !getInitScript().get().isBlank()) {
+            argumentsBuilder.add("--init-script=" + getInitScript().get());
+        }
+        return argumentsBuilder.build();
+    }
+
+    private Set<String> parseDryRunResult(String output) {
+        return DRY_RUN_TASK_PATTERN
+                .matcher(output)
+                .results()
+                .map(m -> m.group(1))
+                .collect(Collectors.toCollection(TreeSet::new));
     }
 }

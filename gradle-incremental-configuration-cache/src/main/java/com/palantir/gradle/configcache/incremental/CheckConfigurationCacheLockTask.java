@@ -16,6 +16,8 @@
 
 package com.palantir.gradle.configcache.incremental;
 
+import com.palantir.gradle.configcache.incremental.DryRunResult.Failure;
+import com.palantir.gradle.configcache.incremental.DryRunResult.Success;
 import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -57,9 +59,8 @@ public abstract class CheckConfigurationCacheLockTask extends AbstractDryRunTask
     public final void check() throws IOException {
         DryRunResult result = dryRun(List.of("--quiet", "--no-configuration-cache"));
 
-        if (result.isFailure()) {
-            throw new RuntimeException(
-                    "Failed to dry tasks: \n" + getTasksToDryRun().get());
+        if (result instanceof Failure failure) {
+            throw new RuntimeException("Failed to dry run configuration-cacheable tasks: " + failure.errorOutput());
         }
 
         Path lockPath = getLockFile().getSingleFile().toPath();
@@ -73,7 +74,7 @@ public abstract class CheckConfigurationCacheLockTask extends AbstractDryRunTask
                     "./gradlew :checkConfigurationCacheLock --fix");
         }
 
-        Set<String> dryRanTasks = result.maybeTasks().get();
+        Set<String> dryRanTasks = ((Success) result).tasks();
 
         if (getShouldFix().get()) {
             TaskListFile.write(lockPath, dryRanTasks);

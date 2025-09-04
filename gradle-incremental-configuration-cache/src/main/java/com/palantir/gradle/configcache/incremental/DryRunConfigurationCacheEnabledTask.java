@@ -17,6 +17,8 @@
 package com.palantir.gradle.configcache.incremental;
 
 import com.google.common.base.Splitter;
+import com.palantir.gradle.configcache.incremental.DryRunResult.Failure;
+import com.palantir.gradle.configcache.incremental.DryRunResult.Success;
 import com.palantir.gradle.utils.circleciartifacts.ArtifactLocation;
 import com.palantir.gradle.utils.circleciartifacts.CircleCiArtifacts;
 import com.palantir.gradle.utils.environmentvariables.EnvironmentVariables;
@@ -49,12 +51,12 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
         DryRunResult result =
                 dryRun(List.of("--configuration-cache", "-Pconfiguration-cache-compatible-for-all-tasks"));
 
-        if (result.isSuccess()) {
+        if (result instanceof Success) {
             Files.writeString(getMarkerOutputFile().get().getAsFile().toPath(), "up-to-date");
             return;
         }
 
-        String message = errorMessage(result.maybeErrorOutput().get());
+        String message = errorMessage(((Failure) result).errorOutput());
         throw new RuntimeException(message);
     }
 

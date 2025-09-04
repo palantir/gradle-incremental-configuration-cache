@@ -15,23 +15,13 @@
  */
 package com.palantir.gradle.configcache.incremental;
 
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 
 public sealed interface DryRunResult permits DryRunResult.Success, DryRunResult.Failure {
 
-    record Success(Set<String> tasks) implements DryRunResult {
-        public Success {
-            Objects.requireNonNull(tasks, "tasks must not be null");
-        }
-    }
+    record Success(Set<String> tasks) implements DryRunResult {}
 
-    record Failure(String errorOutput) implements DryRunResult {
-        public Failure {
-            Objects.requireNonNull(errorOutput, "errorOutput must not be null");
-        }
-    }
+    record Failure(String errorOutput) implements DryRunResult {}
 
     static DryRunResult success(Set<String> tasks) {
         return new Success(tasks);
@@ -39,21 +29,5 @@ public sealed interface DryRunResult permits DryRunResult.Success, DryRunResult.
 
     static DryRunResult failure(String errorOutput) {
         return new Failure(errorOutput);
-    }
-
-    default boolean isSuccess() {
-        return this instanceof Success;
-    }
-
-    default boolean isFailure() {
-        return this instanceof Failure;
-    }
-
-    default Optional<Set<String>> maybeTasks() {
-        return this instanceof Success s ? Optional.of(s.tasks()) : Optional.empty();
-    }
-
-    default Optional<String> maybeErrorOutput() {
-        return this instanceof Failure f ? Optional.of(f.errorOutput()) : Optional.empty();
     }
 }
