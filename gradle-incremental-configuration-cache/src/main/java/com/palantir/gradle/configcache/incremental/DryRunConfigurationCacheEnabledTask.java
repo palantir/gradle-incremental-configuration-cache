@@ -28,7 +28,7 @@ import java.util.Optional;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.TaskAction;
 
-public abstract class DryRunConfigurationCacheEnabledTask extends DryRunTask {
+public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRunTask {
 
     @Nested
     protected abstract EnvironmentVariables getEnvironmentVariables();
@@ -37,22 +37,24 @@ public abstract class DryRunConfigurationCacheEnabledTask extends DryRunTask {
     protected abstract CircleCiArtifacts getCircleCiArtifacts();
 
     public DryRunConfigurationCacheEnabledTask() {
-        getArguments().set(List.of("--configuration-cache", "-Pconfiguration-cache-compatible-for-all-tasks"));
-        getOutputDirectory()
+        getMarkerOutputFile()
                 .set(getTemporaryDir()
                         .toPath()
-                        .resolve("dryRunConfigurationCache")
+                        .resolve("dryRunConfigurationCacheEnabled.marker")
                         .toFile());
     }
 
     @TaskAction
     public final void check() throws IOException {
-        Optional<String> failure = dryRunError();
-        if (failure.isEmpty()) {
+        DryRunResult result =
+                dryRun(List.of("--configuration-cache", "-Pconfiguration-cache-compatible-for-all-tasks"));
+
+        if (result.isSuccess()) {
+            Files.writeString(getMarkerOutputFile().get().getAsFile().toPath(), "up-to-date");
             return;
         }
 
-        String message = errorMessage(failure.get());
+        String message = errorMessage(result.maybeErrorOutput().get());
         throw new RuntimeException(message);
     }
 

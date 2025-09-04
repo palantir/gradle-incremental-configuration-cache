@@ -32,7 +32,7 @@ import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.options.Option;
 
-public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
+public abstract class CheckConfigurationCacheLockTask extends AbstractDryRunTask {
 
     @InputFiles
     @PathSensitive(PathSensitivity.RELATIVE)
@@ -45,21 +45,19 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
     public abstract Property<Boolean> getShouldFix();
 
     public CheckConfigurationCacheLockTask() {
-        getArguments().set(List.of("--quiet", "--no-configuration-cache"));
         getShouldFix().set(false);
-        getOutputDirectory()
+        getMarkerOutputFile()
                 .set(getTemporaryDir()
                         .toPath()
-                        .resolve("dryRunNoConfigurationCache")
+                        .resolve("checkConfigurationCacheLock.marker")
                         .toFile());
     }
 
     @TaskAction
     public final void check() throws IOException {
+        DryRunResult result = dryRun(List.of("--quiet", "--no-configuration-cache"));
 
-        // Check that dry-run was successful
-        if (dryRunError().isPresent()) {
-            getLogger().error(dryRunError().get());
+        if (result.isFailure()) {
             throw new RuntimeException(
                     "Failed to dry tasks: \n" + getTasksToDryRun().get());
         }
@@ -75,11 +73,12 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
                     "./gradlew :checkConfigurationCacheLock --fix");
         }
 
-        Set<String> dryRanTasks = dryRunResult();
+        Set<String> dryRanTasks = result.maybeTasks().get();
 
         if (getShouldFix().get()) {
             TaskListFile.write(lockPath, dryRanTasks);
             getLogger().lifecycle("Lock file updated with {} tasks", dryRanTasks.size());
+            Files.writeString(getMarkerOutputFile().get().getAsFile().toPath(), "up-to-date");
             return;
         }
 
@@ -87,9 +86,11 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
 
         if (lockFileTasks.equals(dryRanTasks)) {
             getLogger().lifecycle("Lock file is up to date with {} tasks", lockFileTasks.size());
+            Files.writeString(getMarkerOutputFile().get().getAsFile().toPath(), "up-to-date");
             return;
         }
 
+        // Do NOT write marker if not up-to-date
         Set<String> inLockNotInDryRun = new HashSet<>(lockFileTasks);
         inLockNotInDryRun.removeAll(dryRanTasks);
 
