@@ -121,7 +121,8 @@ public abstract class DryRunTask extends DefaultTask {
         argumentsBuilder.add("--console=plain");
         argumentsBuilder.addAll(getArguments().get());
 
-        // Pass init script explicitly for the Tooling API process if provided
+        // GradleConnector runs builds in a separate process, so we must explicitly pass init scripts.
+        // This is required for Nebula tests, which rely on init scripts for test setup.
         if (getInitScript().isPresent() && !getInitScript().get().isBlank()) {
             argumentsBuilder.add("--init-script=" + getInitScript().get());
         }
@@ -135,6 +136,10 @@ public abstract class DryRunTask extends DefaultTask {
                 .results()
                 .map(m -> m.group(1))
                 .collect(Collectors.toCollection(TreeSet::new));
+    }
+
+    public final Set<String> dryRunResult() {
+        return new TaskListFile(getResultFile().getAsFile().get().toPath()).loadTasks();
     }
 
     public final Optional<String> dryRunError() throws IOException {

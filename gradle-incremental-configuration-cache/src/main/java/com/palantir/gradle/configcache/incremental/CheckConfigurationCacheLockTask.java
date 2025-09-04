@@ -75,8 +75,7 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
                     "./gradlew :checkConfigurationCacheLock --fix");
         }
 
-        Set<String> dryRanTasks =
-                new TaskListFile(getResultFile().getAsFile().get().toPath()).loadTasks();
+        Set<String> dryRanTasks = dryRunResult();
 
         if (getShouldFix().get()) {
             TaskListFile.write(lockPath, dryRanTasks);
