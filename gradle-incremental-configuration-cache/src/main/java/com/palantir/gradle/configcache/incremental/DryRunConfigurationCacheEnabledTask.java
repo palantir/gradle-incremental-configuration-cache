@@ -20,9 +20,7 @@ import com.google.common.base.Splitter;
 import com.palantir.gradle.utils.circleciartifacts.ArtifactLocation;
 import com.palantir.gradle.utils.circleciartifacts.CircleCiArtifacts;
 import com.palantir.gradle.utils.environmentvariables.EnvironmentVariables;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -40,7 +38,7 @@ public abstract class DryRunConfigurationCacheEnabledTask extends DryRunTask {
 
     public DryRunConfigurationCacheEnabledTask() {
         getArguments().set(List.of("--configuration-cache", "-Pconfiguration-cache-compatible-for-all-tasks"));
-        getDryRunResult()
+        getOutputDirectory()
                 .set(getTemporaryDir()
                         .toPath()
                         .resolve("dryRunConfigurationCache")
@@ -48,29 +46,30 @@ public abstract class DryRunConfigurationCacheEnabledTask extends DryRunTask {
     }
 
     @TaskAction
-    @Override
-    public final void dryRun() {
-        try {
-            super.dryRun();
-        } catch (DryRunException e) {
-            String message = errorMessage(e.output());
-            throw new RuntimeException(message);
+    public final void check() throws IOException {
+
+        Optional<String> failure = dryRunError();
+        if (failure.isEmpty()) {
+            return;
         }
+
+        String message = errorMessage(failure.get());
+        throw new RuntimeException(message);
     }
 
-    private String errorMessage(ByteArrayOutputStream outputStream) {
+    private String errorMessage(String output) {
         boolean isCircleCI = getEnvironmentVariables()
                 .envVarOrFromTestingProperty("CIRCLECI")
                 .isPresent();
 
         if (!isCircleCI) {
-            return buildDetailedErrorMessage(outputStream.toString(StandardCharsets.UTF_8), Optional.empty());
+            return buildDetailedErrorMessage(output, Optional.empty());
         }
 
-        return circleCiErrorMessage(outputStream);
+        return circleCiErrorMessage(output);
     }
 
-    private String circleCiErrorMessage(ByteArrayOutputStream outputStream) {
+    private String circleCiErrorMessage(String output) {
         try {
             String artifactPath = "configuration-cache-validation-report/validation-report.txt";
             ArtifactLocation artifactLocation =
@@ -79,10 +78,9 @@ public abstract class DryRunConfigurationCacheEnabledTask extends DryRunTask {
             Path artifactLocationPath =
                     artifactLocation.physicalPath().getAsFile().toPath();
             Files.createDirectories(artifactLocationPath.getParent());
-            Files.write(artifactLocationPath, outputStream.toByteArray());
+            Files.writeString(artifactLocationPath, output);
 
-            return buildDetailedErrorMessage(
-                    outputStream.toString(StandardCharsets.UTF_8), Optional.of(artifactLocation.circleLink()));
+            return buildDetailedErrorMessage(output, Optional.of(artifactLocation.circleLink()));
         } catch (IOException e) {
             // Fall back to including output directly if we can't create the artifact
             return String.format(
@@ -91,8 +89,7 @@ public abstract class DryRunConfigurationCacheEnabledTask extends DryRunTask {
 
                     (Failed to save CircleCI artifact: %s)
                     """,
-                    buildDetailedErrorMessage(outputStream.toString(StandardCharsets.UTF_8), Optional.empty()),
-                    e.getMessage());
+                    buildDetailedErrorMessage(output, Optional.empty()), e.getMessage());
         }
     }
 

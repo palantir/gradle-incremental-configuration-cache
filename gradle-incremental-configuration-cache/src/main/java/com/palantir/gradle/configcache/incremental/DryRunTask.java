@@ -1,37 +1,25 @@
-/*
- * (c) Copyright 2025 Palantir Technologies Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.palantir.gradle.configcache.incremental;
 
 import com.google.common.collect.ImmutableList;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.ProjectLayout;
-import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.tooling.GradleConnectionException;
 import org.gradle.tooling.GradleConnector;
@@ -52,21 +40,24 @@ public abstract class DryRunTask extends DefaultTask {
     @Inject
     protected abstract ProjectLayout getProjectLayout();
 
-    @OutputFile
-    public abstract RegularFileProperty getDryRunResult();
+    @OutputDirectory
+    public abstract DirectoryProperty getOutputDirectory();
 
-    /**
-     * Performs the dry-run of the specified tasks using the Gradle Tooling API.
-     * The set of tasks that would be executed is written to {@link #getDryRunResult()}.
-     * If no tasks are specified, writes an empty result.
-     */
+    private Path dryRunResultFile() {
+        return getOutputDirectory().get().file("dryRunResult").getAsFile().toPath();
+    }
+
+    private Path dryRunErrorFile() {
+        return getOutputDirectory().get().file("dryRunError").getAsFile().toPath();
+    }
+
     @TaskAction
-    public void dryRun() {
+    public final void dryRun() throws IOException {
         Set<String> tasks = getTasksToDryRun().get();
 
         if (tasks.isEmpty()) {
             getLogger().info("No tasks to dry-run");
-            TaskListFile.write(getDryRunResult().getAsFile().get().toPath(), new TreeSet<>());
+            return;
         }
 
         getLogger().info("Dry-running {} tasks", tasks.size());
@@ -76,7 +67,6 @@ public abstract class DryRunTask extends DefaultTask {
 
         try (ProjectConnection connection = connector.connect()) {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
             try {
                 connection
                         .newBuild()
@@ -86,17 +76,15 @@ public abstract class DryRunTask extends DefaultTask {
                         .setStandardError(outputStream)
                         .run();
 
-                getLogger().info("All {} tasks passed dry-ran successfully", tasks.size());
+                getLogger().info("All {} tasks dry-ran successfully", tasks.size());
 
+                // If we have successfully ran dry run write the dry-ran tasks
                 TaskListFile.write(
-                        getDryRunResult().getAsFile().get().toPath(),
-                        Pattern.compile("(:[\\w:-]+)\\s+SKIPPED")
-                                .matcher(outputStream.toString(StandardCharsets.UTF_8))
-                                .results()
-                                .map(m -> m.group(1))
-                                .collect(Collectors.toCollection(TreeSet::new)));
+                        dryRunResultFile(), parseDryRunResult(outputStream.toString(StandardCharsets.UTF_8)));
             } catch (GradleConnectionException e) {
-                throw new DryRunException("Failed to dry run tasks: " + String.join(",", tasks), e, outputStream);
+                getLogger().info("Failed to run Dry-run tasks", e);
+                // If we failed to run write the output
+                Files.writeString(dryRunErrorFile(), outputStream.toString(StandardCharsets.UTF_8));
             }
         }
     }
@@ -115,21 +103,24 @@ public abstract class DryRunTask extends DefaultTask {
         return argumentsBuilder.build();
     }
 
-    public final Set<String> dryRunResult() {
-        return new TaskListFile(getDryRunResult().getAsFile().get().toPath()).loadTasks();
+    private Set<String> parseDryRunResult(String output) {
+        return Pattern.compile("(:[\\w:-]+)\\s+SKIPPED")
+                .matcher(output)
+                .results()
+                .map(m -> m.group(1))
+                .collect(Collectors.toCollection(TreeSet::new));
     }
 
-    public static class DryRunException extends RuntimeException {
+    public final Set<String> dryRunResult() {
+        return new TaskListFile(dryRunResultFile()).loadTasks();
+    }
 
-        private final ByteArrayOutputStream output;
-
-        public DryRunException(String message, Throwable cause, ByteArrayOutputStream outputStream) {
-            super(message, cause);
-            this.output = outputStream;
+    public final Optional<String> dryRunError() throws IOException {
+        if (Files.notExists(dryRunErrorFile())) {
+            return Optional.empty();
         }
-
-        public final ByteArrayOutputStream output() {
-            return output;
-        }
+        return Optional.of(Files.readString(dryRunErrorFile(), StandardCharsets.UTF_8)
+                        .trim())
+                .filter(s -> !s.isEmpty());
     }
 }

@@ -144,7 +144,7 @@ class DryRunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCache
         result.output.contains(':dryRunConfigurationCacheEnabledTasks')
     }
 
-    def 'dryRunConfigurationCacheEnabledTasks is up-to-date on second run'() {
+    def 'dryRunConfigurationCacheEnabledTasks is up-to-date on second run for success'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << '''
             :compileJava

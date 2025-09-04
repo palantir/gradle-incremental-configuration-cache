@@ -17,6 +17,7 @@
 package com.palantir.gradle.configcache.incremental;
 
 import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
@@ -46,7 +47,7 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
     public CheckConfigurationCacheLockTask() {
         getArguments().set(List.of("--quiet", "--no-configuration-cache"));
         getShouldFix().set(false);
-        getDryRunResult()
+        getOutputDirectory()
                 .set(getTemporaryDir()
                         .toPath()
                         .resolve("dryRunNoConfigurationCache")
@@ -54,7 +55,15 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
     }
 
     @TaskAction
-    public final void check() {
+    public final void check() throws IOException {
+
+        // Check that dry-run was successful
+        if (dryRunError().isPresent()) {
+            getLogger().error(dryRunError().get());
+            throw new RuntimeException(
+                    "Failed to dry tasks: \n" + getTasksToDryRun().get());
+        }
+
         Path lockPath = getLockFile().getSingleFile().toPath();
         if (Files.notExists(lockPath) && !getShouldFix().get()) {
             throw new ExceptionWithSuggestion(
