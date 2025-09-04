@@ -93,26 +93,27 @@ public abstract class DryRunTask extends DefaultTask {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(16 * 1024);
 
         try (ProjectConnection connection = connector.connect()) {
-            try {
-                connection
-                        .newBuild()
-                        .withArguments(buildArguments())
-                        .forTasks(tasks.toArray(new String[0]))
-                        .setStandardOutput(outputStream)
-                        .setStandardError(outputStream)
-                        .run();
+            connection
+                    .newBuild()
+                    .withArguments(buildArguments())
+                    .forTasks(tasks.toArray(new String[0]))
+                    .setStandardOutput(outputStream)
+                    .setStandardError(outputStream)
+                    .run();
 
-                getLogger().info("All {} tasks dry-ran successfully", tasks.size());
-                TaskListFile.write(
-                        getResultFile().get().getAsFile().toPath(),
-                        parseDryRunResult(outputStream.toString(StandardCharsets.UTF_8)));
-                writeError("");
-            } catch (GradleConnectionException e) {
-                getLogger().info("Failed to run Dry-run tasks", e);
-                TaskListFile.write(getResultFile().get().getAsFile().toPath(), new TreeSet<>());
-                writeError(outputStream.toString(StandardCharsets.UTF_8));
-            }
+            getLogger().info("All {} tasks dry-ran successfully", tasks.size());
+
+        } catch (GradleConnectionException e) {
+            getLogger().info("Failed to run Dry-run tasks", e);
+            TaskListFile.write(getResultFile().get().getAsFile().toPath(), new TreeSet<>());
+            writeError(outputStream.toString(StandardCharsets.UTF_8));
+            return;
         }
+
+        TaskListFile.write(
+                getResultFile().get().getAsFile().toPath(),
+                parseDryRunResult(outputStream.toString(StandardCharsets.UTF_8)));
+        writeError("");
     }
 
     private ImmutableList<String> buildArguments() {
