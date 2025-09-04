@@ -1,3 +1,18 @@
+/*
+ * (c) Copyright 2025 Palantir Technologies Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.palantir.gradle.configcache.incremental;
 
 import com.google.common.collect.ImmutableList;
@@ -15,10 +30,12 @@ import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.ProjectLayout;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.tooling.GradleConnectionException;
@@ -26,6 +43,8 @@ import org.gradle.tooling.GradleConnector;
 import org.gradle.tooling.ProjectConnection;
 
 public abstract class DryRunTask extends DefaultTask {
+
+    private static final Pattern DRY_RUN_TASK_PATTERN = Pattern.compile("(:[\\w:-]+)\\s+SKIPPED");
 
     @Input
     public abstract SetProperty<String> getTasksToDryRun();
@@ -37,26 +56,32 @@ public abstract class DryRunTask extends DefaultTask {
     @org.gradle.api.tasks.Optional
     public abstract Property<String> getInitScript();
 
+    @Internal
+    protected abstract RegularFileProperty getResultFile();
+
+    @Internal
+    protected abstract RegularFileProperty getErrorFile();
+
     @Inject
     protected abstract ProjectLayout getProjectLayout();
 
     @OutputDirectory
     public abstract DirectoryProperty getOutputDirectory();
 
-    private Path dryRunResultFile() {
-        return getOutputDirectory().get().file("dryRunResult").getAsFile().toPath();
-    }
-
-    private Path dryRunErrorFile() {
-        return getOutputDirectory().get().file("dryRunError").getAsFile().toPath();
+    public DryRunTask() {
+        getResultFile().convention(getOutputDirectory().file("dryRunResult"));
+        getErrorFile().convention(getOutputDirectory().file("dryRunError"));
     }
 
     @TaskAction
     public final void dryRun() throws IOException {
-        Set<String> tasks = getTasksToDryRun().get();
+        Files.createDirectories(getOutputDirectory().get().getAsFile().toPath());
 
+        Set<String> tasks = getTasksToDryRun().get();
         if (tasks.isEmpty()) {
             getLogger().info("No tasks to dry-run");
+            TaskListFile.write(getResultFile().get().getAsFile().toPath(), new TreeSet<>());
+            writeError("");
             return;
         }
 
@@ -65,8 +90,9 @@ public abstract class DryRunTask extends DefaultTask {
         GradleConnector connector = GradleConnector.newConnector()
                 .forProjectDirectory(getProjectLayout().getProjectDirectory().getAsFile());
 
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(16 * 1024);
+
         try (ProjectConnection connection = connector.connect()) {
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             try {
                 connection
                         .newBuild()
@@ -77,14 +103,14 @@ public abstract class DryRunTask extends DefaultTask {
                         .run();
 
                 getLogger().info("All {} tasks dry-ran successfully", tasks.size());
-
-                // If we have successfully ran dry run write the dry-ran tasks
                 TaskListFile.write(
-                        dryRunResultFile(), parseDryRunResult(outputStream.toString(StandardCharsets.UTF_8)));
+                        getResultFile().get().getAsFile().toPath(),
+                        parseDryRunResult(outputStream.toString(StandardCharsets.UTF_8)));
+                writeError("");
             } catch (GradleConnectionException e) {
                 getLogger().info("Failed to run Dry-run tasks", e);
-                // If we failed to run write the output
-                Files.writeString(dryRunErrorFile(), outputStream.toString(StandardCharsets.UTF_8));
+                TaskListFile.write(getResultFile().get().getAsFile().toPath(), new TreeSet<>());
+                writeError(outputStream.toString(StandardCharsets.UTF_8));
             }
         }
     }
@@ -92,10 +118,10 @@ public abstract class DryRunTask extends DefaultTask {
     private ImmutableList<String> buildArguments() {
         ImmutableList.Builder<String> argumentsBuilder = ImmutableList.builder();
         argumentsBuilder.add("--dry-run");
+        argumentsBuilder.add("--console=plain");
         argumentsBuilder.addAll(getArguments().get());
 
-        // GradleConnector runs builds in a separate process, so we must explicitly pass init scripts.
-        // This is required for Nebula tests, which rely on init scripts for test setup.
+        // Pass init script explicitly for the Tooling API process if provided
         if (getInitScript().isPresent() && !getInitScript().get().isBlank()) {
             argumentsBuilder.add("--init-script=" + getInitScript().get());
         }
@@ -104,23 +130,24 @@ public abstract class DryRunTask extends DefaultTask {
     }
 
     private Set<String> parseDryRunResult(String output) {
-        return Pattern.compile("(:[\\w:-]+)\\s+SKIPPED")
+        return DRY_RUN_TASK_PATTERN
                 .matcher(output)
                 .results()
                 .map(m -> m.group(1))
                 .collect(Collectors.toCollection(TreeSet::new));
     }
 
-    public final Set<String> dryRunResult() {
-        return new TaskListFile(dryRunResultFile()).loadTasks();
-    }
-
     public final Optional<String> dryRunError() throws IOException {
-        if (Files.notExists(dryRunErrorFile())) {
+        Path path = getErrorFile().get().getAsFile().toPath();
+        if (Files.notExists(path)) {
             return Optional.empty();
         }
-        return Optional.of(Files.readString(dryRunErrorFile(), StandardCharsets.UTF_8)
-                        .trim())
-                .filter(s -> !s.isEmpty());
+
+        String content = Files.readString(path, StandardCharsets.UTF_8).trim();
+        return content.isEmpty() ? Optional.empty() : Optional.of(content);
+    }
+
+    private void writeError(String content) throws IOException {
+        Files.writeString(getErrorFile().get().getAsFile().toPath(), content, StandardCharsets.UTF_8);
     }
 }
