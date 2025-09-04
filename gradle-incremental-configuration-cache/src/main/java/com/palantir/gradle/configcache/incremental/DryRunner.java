@@ -27,7 +27,6 @@ import javax.inject.Inject;
 import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.logging.Logging;
-import org.gradle.tooling.GradleConnectionException;
 import org.gradle.tooling.GradleConnector;
 import org.gradle.tooling.ProjectConnection;
 
@@ -63,7 +62,7 @@ public abstract class DryRunner {
 
             log.info("All {} tasks dry-ran successfully", tasksToDryRun.size());
 
-        } catch (GradleConnectionException e) {
+        } catch (Exception e) {
             log.info("Failed to run Dry-run tasks", e);
             String error = outputStream.toString(StandardCharsets.UTF_8);
             return DryRunResult.failure(error);
