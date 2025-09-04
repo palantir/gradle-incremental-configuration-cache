@@ -163,16 +163,15 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
             Optional<String> configCacheReportUrl,
             Optional<String> configCacheReportPath) {
 
+        Optional<String> configCacheLocation =
+                configCacheReportUrl.or(() -> configCacheReportPath.map(path -> "file://" + path));
+
+        Optional<String> configCacheReport = configCacheLocation.map(location ->
+                String.format("%s  📊 Config cache report: %s", validationReportUrl.isPresent() ? "\n" : "", location));
+
         return validationReportUrl
-                .map(s -> String.format(
-                        "  📋 Full output: %s%s",
-                        s,
-                        configCacheReportUrl
-                                .map(url -> "\n  📊  Config cache report: " + url)
-                                .orElse("")))
-                .orElseGet(() -> configCacheReportPath
-                        .map(s -> "  📊  Config cache report: file://" + s)
-                        .orElse("  To see full output above re-run with --info"));
+                .map(url -> String.format("  📋 Full output: %s%s", url, configCacheReport.orElse("")))
+                .orElseGet(() -> configCacheReport.orElse("  To see full output above re-run with --info"));
     }
 
     private Optional<String> extractConfigCacheReportPath(String output) {
