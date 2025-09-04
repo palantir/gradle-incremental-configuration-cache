@@ -47,7 +47,6 @@ public abstract class DryRunConfigurationCacheEnabledTask extends DryRunTask {
 
     @TaskAction
     public final void check() throws IOException {
-
         Optional<String> failure = dryRunError();
         if (failure.isEmpty()) {
             return;
