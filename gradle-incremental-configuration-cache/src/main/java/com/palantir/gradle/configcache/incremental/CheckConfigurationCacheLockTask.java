@@ -90,7 +90,6 @@ public abstract class CheckConfigurationCacheLockTask extends AbstractDryRunTask
             return;
         }
 
-        // Do NOT write marker if not up-to-date
         Set<String> inLockNotInDryRun = new HashSet<>(lockFileTasks);
         inLockNotInDryRun.removeAll(dryRanTasks);
 
