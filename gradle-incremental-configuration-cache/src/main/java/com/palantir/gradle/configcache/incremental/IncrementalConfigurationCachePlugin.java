@@ -151,6 +151,10 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
     }
 
     private void configureTaskCompatibility(Project project, Set<String> lockListTasks) {
+        // We need a way to always run with configuration cache for every task. This is needed as in some cases the
+        // allow list and its lock file will be out of sync. In these cases we still want the
+        // dryRunConfigurationCacheEnabledTasks task to all its dry-run tasks with configuration cache, so that all
+        // issues (lock file out of date and tasks that are not CC friendly) are surfaced at once.
         if (project.getProviders()
                 .gradleProperty("configuration-cache-compatible-for-all-tasks")
                 .isPresent()) {
