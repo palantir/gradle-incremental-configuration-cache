@@ -110,9 +110,7 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
         // Build the main message (shared between CI and local)
         String mainMessage = String.format(
                 """
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             ❌ CONFIGURATION CACHE ALLOW LIST VALIDATION FAILED
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
             WHAT HAPPENED:
               Some task / tasks in the allow list failed to run with configuration cache enabled.
@@ -138,7 +136,6 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
 
               📚 Gradle Guide: https://github.com/palantir/gradle-guide/blob/develop/guide/adopting-the-configuration-cache.md
               📚 Gradle docs: https://docs.gradle.org/current/userguide/configuration_cache.html
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             """,
                 reportsSection,
                 configCacheReportUrl.isPresent() || configCacheReportPath.isPresent()
@@ -149,8 +146,8 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
         if (validationReportUrl.isEmpty() && outputContent != null && !outputContent.isEmpty()) {
             mainMessage +=
                     """
+
                 VALIDATION OUTPUT: to see full output above re-run with --info
-                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 """;
             // the outputContent can be very large and annoying to scroll past so only show when running with info
             getLogger().info(outputContent);
