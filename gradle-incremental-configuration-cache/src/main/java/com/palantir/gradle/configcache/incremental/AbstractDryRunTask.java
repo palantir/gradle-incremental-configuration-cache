@@ -105,7 +105,7 @@ public abstract class AbstractDryRunTask extends DefaultTask {
         return DRY_RUN_TASK_PATTERN
                 .matcher(output)
                 .results()
-                .map(m -> m.group(1))
+                .map(match -> match.group(1))
                 .collect(Collectors.toCollection(TreeSet::new));
     }
 }
