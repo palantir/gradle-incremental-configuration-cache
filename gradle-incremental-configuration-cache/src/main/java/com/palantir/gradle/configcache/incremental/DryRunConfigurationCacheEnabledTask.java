@@ -198,12 +198,13 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
         // e.g., from /path/to/build/reports/configuration-cache/abc123/def456/configuration-cache-report.html
         // we want configuration-cache-reports/abc123/def456/configuration-cache-report.html
         List<String> pathParts = Splitter.on("/configuration-cache/").splitToList(localReportPath);
-        if (pathParts.size() > 1) {
-            String artifactPath = "configuration-cache-reports/" + pathParts.get(1);
-            ArtifactLocation artifactLocation =
-                    getCircleCiArtifacts().resolveArtifactLocation(artifactPath).get();
-            return Optional.of(artifactLocation.circleLink());
+        if (pathParts.size() <= 1) {
+            return Optional.empty();
         }
-        return Optional.empty();
+
+        String artifactPath = "configuration-cache-reports/" + pathParts.get(1);
+        ArtifactLocation artifactLocation =
+                getCircleCiArtifacts().resolveArtifactLocation(artifactPath).get();
+        return Optional.of(artifactLocation.circleLink());
     }
 }
