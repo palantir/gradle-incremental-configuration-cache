@@ -89,16 +89,16 @@ public abstract class AbstractDryRunTask extends DefaultTask {
     }
 
     private ImmutableList<String> buildArguments(List<String> arguments) {
-        ImmutableList.Builder<String> argumentsBuilder = ImmutableList.builder();
-        argumentsBuilder.add("--dry-run");
-        argumentsBuilder.add("--console=plain");
-        if (arguments != null) {
-            argumentsBuilder.addAll(arguments);
-        }
-        if (getInitScript().isPresent() && !getInitScript().get().isBlank()) {
-            argumentsBuilder.add("--init-script=" + getInitScript().get());
-        }
-        return argumentsBuilder.build();
+        return ImmutableList.<String>builder()
+                .add("--dry-run")
+                .add("--console=plain")
+                .addAll(arguments)
+                .addAll(
+                        getInitScript().isPresent() && !getInitScript().get().isBlank()
+                                ? ImmutableList.of(
+                                        "--init-script=" + getInitScript().get())
+                                : ImmutableList.of())
+                .build();
     }
 
     private Set<String> parseDryRunResult(String output) {
