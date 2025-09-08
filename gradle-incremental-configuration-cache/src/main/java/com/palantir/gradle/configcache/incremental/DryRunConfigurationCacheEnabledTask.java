@@ -134,10 +134,9 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
                   • External processes → Use ProviderFactory.exec() or GradleExec (https://github.com/palantir/gradle-utils?tab=readme-ov-file#gradleexec)
                   • Cannot serialize Gradle model types → Don't pass in full object use Property<T> for specific values or inject services
 
-              3. If you upgraded a plugin, verify it supports configuration cache
-
-              📚 Gradle Guide: https://github.com/palantir/gradle-guide/blob/develop/guide/adopting-the-configuration-cache.md
-              📚 Gradle docs: https://docs.gradle.org/current/userguide/configuration_cache.html
+              3. If you upgraded a plugin, verify it supports configuration cache:
+                  📚 Gradle Guide: https://github.com/palantir/gradle-guide/blob/develop/guide/adopting-the-configuration-cache.md
+                  📚 Gradle docs: https://docs.gradle.org/current/userguide/configuration_cache.html
             """,
                 reportsSection,
                 configCacheReportUrl.isPresent() || configCacheReportPath.isPresent()
