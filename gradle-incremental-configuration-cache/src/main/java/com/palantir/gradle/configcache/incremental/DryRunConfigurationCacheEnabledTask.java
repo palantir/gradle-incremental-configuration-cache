@@ -56,11 +56,11 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
             return;
         }
 
-        String message = errorMessage(Optional.ofNullable(((Failure) result).errorOutput()));
+        String message = errorMessage(((Failure) result).errorOutput());
         throw new RuntimeException(message);
     }
 
-    private String errorMessage(Optional<String> output) {
+    private String errorMessage(String output) {
         boolean isCircleCI = getEnvironmentVariables()
                 .envVarOrFromTestingProperty("CIRCLECI")
                 .isPresent();
@@ -72,7 +72,7 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
         return circleCiErrorMessage(output);
     }
 
-    private String circleCiErrorMessage(Optional<String> output) {
+    private String circleCiErrorMessage(String output) {
         try {
             String artifactPath = "configuration-cache-validation-report/validation-report.txt";
             ArtifactLocation artifactLocation =
@@ -81,7 +81,7 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
             Path artifactLocationPath =
                     artifactLocation.physicalPath().getAsFile().toPath();
             Files.createDirectories(artifactLocationPath.getParent());
-            Files.writeString(artifactLocationPath, output.orElse(""));
+            Files.writeString(artifactLocationPath, output);
 
             return buildDetailedErrorMessage(output, Optional.of(artifactLocation.circleLink()));
         } catch (IOException e) {
@@ -97,7 +97,7 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
     }
 
     @SuppressWarnings("checkstyle:LineLength")
-    private String buildDetailedErrorMessage(Optional<String> outputContent, Optional<String> validationReportUrl) {
+    private String buildDetailedErrorMessage(String outputContent, Optional<String> validationReportUrl) {
         Optional<String> configCacheReportPath = extractConfigCacheReportPath(outputContent);
 
         // Get the proper artifact URL for the configuration cache report
@@ -145,14 +145,14 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
                         : "output above");
 
         // Add validation output for local development only
-        if (validationReportUrl.isEmpty() && outputContent != null && !outputContent.isEmpty()) {
+        if (validationReportUrl.isEmpty() && !outputContent.isEmpty()) {
             mainMessage +=
                     """
 
                 VALIDATION OUTPUT: to see full output above re-run with --info
                 """;
             // the outputContent can be very large and annoying to scroll past so only show when running with info
-            getLogger().info(outputContent.orElse(""));
+            getLogger().info(outputContent);
         }
 
         return mainMessage;
@@ -174,23 +174,22 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
                 .orElseGet(() -> configCacheReport.orElse("  To see full output above re-run with --info"));
     }
 
-    private Optional<String> extractConfigCacheReportPath(Optional<String> output) {
-        return output.flatMap(content -> {
-            // Look for "See the complete report at file:///path/to/report.html"
-            String pattern = "See the complete report at file://";
-            int index = content.indexOf(pattern);
+    private Optional<String> extractConfigCacheReportPath(String output) {
+        // Look for "See the complete report at file:///path/to/report.html"
+        String pattern = "See the complete report at file://";
+        int index = output.indexOf(pattern);
 
-            if (index != -1) {
-                int startIndex = index + pattern.length();
-                int endIndex = content.indexOf('\n', startIndex);
-                if (endIndex == -1) {
-                    endIndex = content.length();
-                }
-                return Optional.of(content.substring(startIndex, endIndex).trim());
-            }
-
+        if (index == -1) {
             return Optional.empty();
-        });
+        }
+
+        int startIndex = index + pattern.length();
+        int endIndex = output.indexOf('\n', startIndex);
+
+        if (endIndex == -1) {
+            endIndex = output.length();
+        }
+        return Optional.of(output.substring(startIndex, endIndex).trim());
     }
 
     private Optional<String> configCacheReportArtifactUrl(String localReportPath) {
