@@ -41,6 +41,9 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
     private static final Path LOCK_FILE = Path.of("gradle/configuration-cache-allowed-tasks.lock");
     private static final GradleVersion MIN_GRADLE_VERSION = GradleVersion.version("8.12.0");
 
+    static final String CONFIGURATION_CACHE_REPORTS_DIR = "reports/configuration-cache";
+    static final String CIRCLE_CONFIGURATION_CACHE_REPORTS_DIR = "configuration-cache-reports";
+
     @Inject
     protected abstract ProjectLayout getProjectLayout();
 
@@ -96,7 +99,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
         Path originalConfigurationCacheReportsDir = getProjectLayout()
                 .getBuildDirectory()
-                .dir("reports/configuration-cache")
+                .dir(CONFIGURATION_CACHE_REPORTS_DIR)
                 .get()
                 .getAsFile()
                 .toPath();
@@ -107,7 +110,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                         // Some templates still do not set CIRCLE_ARTIFACTS :(
                         .orElse("/home/circleci/artifacts")
                         .get(),
-                "configuration-cache-reports");
+                CIRCLE_CONFIGURATION_CACHE_REPORTS_DIR);
 
         // If the symlink is already correct, we're done.
         if (Files.isSymbolicLink(originalConfigurationCacheReportsDir)) {

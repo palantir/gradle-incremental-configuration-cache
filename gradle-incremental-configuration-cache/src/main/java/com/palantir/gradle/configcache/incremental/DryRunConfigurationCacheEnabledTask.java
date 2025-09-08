@@ -195,12 +195,14 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
         // Extract the relative path within configuration-cache directory
         // e.g., from /path/to/build/reports/configuration-cache/abc123/def456/configuration-cache-report.html
         // we want configuration-cache-reports/abc123/def456/configuration-cache-report.html
-        List<String> pathParts = Splitter.on("/configuration-cache/").splitToList(localReportPath);
+        List<String> pathParts = Splitter.on(IncrementalConfigurationCachePlugin.CONFIGURATION_CACHE_REPORTS_DIR + '/')
+                .splitToList(localReportPath);
         if (pathParts.size() <= 1) {
             return Optional.empty();
         }
 
-        String artifactPath = "configuration-cache-reports/" + pathParts.get(1);
+        String artifactPath =
+                IncrementalConfigurationCachePlugin.CIRCLE_CONFIGURATION_CACHE_REPORTS_DIR + '/' + pathParts.get(1);
         ArtifactLocation artifactLocation =
                 getCircleCiArtifacts().resolveArtifactLocation(artifactPath).get();
         return Optional.of(artifactLocation.circleLink());
