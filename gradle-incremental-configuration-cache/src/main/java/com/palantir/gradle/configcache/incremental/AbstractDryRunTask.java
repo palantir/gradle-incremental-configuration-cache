@@ -18,7 +18,9 @@ package com.palantir.gradle.configcache.incremental;
 
 import com.google.common.collect.ImmutableList;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -54,7 +56,12 @@ public abstract class AbstractDryRunTask extends DefaultTask {
     @OutputFile
     public abstract RegularFileProperty getMarkerOutputFile();
 
-    protected final DryRunResult dryRun(List<String> extraArgs) {
+    public AbstractDryRunTask() {
+        getMarkerOutputFile()
+                .set(getTemporaryDir().toPath().resolve(getName() + ".marker").toFile());
+    }
+
+    protected final DryRunResult dryRun(List<String> extraArgs) throws IOException {
         Set<String> tasksToDryRun =
                 new TaskListFile(getDryRunTasksFile().getAsFile().get().toPath()).loadTasks();
 
@@ -87,6 +94,7 @@ public abstract class AbstractDryRunTask extends DefaultTask {
             return DryRunResult.failure(error);
         }
 
+        Files.writeString(getMarkerOutputFile().get().getAsFile().toPath(), "up-to-date");
         Set<String> dryRunTasks = parseDryRunResult(outputStream.toString(StandardCharsets.UTF_8));
         return DryRunResult.success(dryRunTasks);
     }

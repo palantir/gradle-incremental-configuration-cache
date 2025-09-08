@@ -48,11 +48,6 @@ public abstract class CheckConfigurationCacheLockTask extends AbstractDryRunTask
 
     public CheckConfigurationCacheLockTask() {
         getShouldFix().set(false);
-        getMarkerOutputFile()
-                .set(getTemporaryDir()
-                        .toPath()
-                        .resolve("checkConfigurationCacheLock.marker")
-                        .toFile());
     }
 
     @TaskAction
@@ -79,7 +74,6 @@ public abstract class CheckConfigurationCacheLockTask extends AbstractDryRunTask
         if (getShouldFix().get()) {
             TaskListFile.write(lockPath, dryRanTasks);
             getLogger().lifecycle("Lock file updated with {} tasks", dryRanTasks.size());
-            Files.writeString(getMarkerOutputFile().get().getAsFile().toPath(), "up-to-date");
             return;
         }
 
@@ -87,7 +81,6 @@ public abstract class CheckConfigurationCacheLockTask extends AbstractDryRunTask
 
         if (lockFileTasks.equals(dryRanTasks)) {
             getLogger().lifecycle("Lock file is up to date with {} tasks", lockFileTasks.size());
-            Files.writeString(getMarkerOutputFile().get().getAsFile().toPath(), "up-to-date");
             return;
         }
 

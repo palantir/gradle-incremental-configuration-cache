@@ -38,13 +38,7 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
     @Nested
     protected abstract CircleCiArtifacts getCircleCiArtifacts();
 
-    public DryRunConfigurationCacheEnabledTask() {
-        getMarkerOutputFile()
-                .set(getTemporaryDir()
-                        .toPath()
-                        .resolve("dryRunConfigurationCacheEnabled.marker")
-                        .toFile());
-    }
+    public DryRunConfigurationCacheEnabledTask() {}
 
     @TaskAction
     public final void check() throws IOException {
@@ -52,7 +46,6 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
                 dryRun(List.of("--configuration-cache", "-Pconfiguration-cache-compatible-for-all-tasks"));
 
         if (result instanceof Success) {
-            Files.writeString(getMarkerOutputFile().get().getAsFile().toPath(), "up-to-date");
             return;
         }
 
