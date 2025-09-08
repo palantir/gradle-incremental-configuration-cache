@@ -122,8 +122,8 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
             WHY THIS MATTERS:
               This validation task runs all the tasks marked as configuration cacheable in the allow list,
               to ensure the allow list contains only configuration cache compatible tasks.
-              Regular CI builds may mask configuration cache issues when non-cacheable
-              tasks disable the configuration cache.
+              Regular CI builds may mask configuration cache issues when configuration cache incompatible tasks
+              disable the configuration cache.
 
             HOW TO FIX (only if you have introduced a task, or upgraded a plugin):
 
