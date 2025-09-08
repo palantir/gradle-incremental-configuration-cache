@@ -17,6 +17,7 @@
 package com.palantir.gradle.configcache.incremental;
 
 import com.google.common.base.Splitter;
+import com.google.common.base.Throwables;
 import com.palantir.gradle.configcache.incremental.DryRunResult.Failure;
 import com.palantir.gradle.configcache.incremental.DryRunResult.Success;
 import com.palantir.gradle.utils.circleciartifacts.ArtifactLocation;
@@ -85,7 +86,7 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
 
                     (Failed to save CircleCI artifact: %s)
                     """,
-                    buildDetailedErrorMessage(output, Optional.empty()), e.getMessage());
+                    buildDetailedErrorMessage(output, Optional.empty()), Throwables.getStackTraceAsString(e));
         }
     }
 
