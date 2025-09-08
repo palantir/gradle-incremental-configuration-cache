@@ -74,13 +74,13 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
         TaskProvider<CheckConfigurationCacheLockTask> checkLock = project.getTasks()
                 .register("checkConfigurationCacheLock", CheckConfigurationCacheLockTask.class, task -> {
-                    task.getTasksToDryRun().set(new TaskListFile(targetTasksPath).loadTasks());
+                    task.getDryRunTasksFile().set(targetTasksPath.toFile());
                     task.getLockFile().from(lockFilePath.toFile());
                 });
 
         TaskProvider<DryRunConfigurationCacheEnabledTask> dryRunTask = project.getTasks()
                 .register("dryRunConfigurationCacheEnabledTasks", DryRunConfigurationCacheEnabledTask.class, task -> {
-                    task.getTasksToDryRun().set(new TaskListFile(targetTasksPath).loadTasks());
+                    task.getDryRunTasksFile().set(targetTasksPath.toFile());
                 });
 
         project.getPluginManager().apply(LifecycleBasePlugin.class);

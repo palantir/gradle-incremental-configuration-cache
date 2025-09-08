@@ -29,17 +29,20 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
-import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.tooling.GradleConnector;
 import org.gradle.tooling.ProjectConnection;
 
 public abstract class AbstractDryRunTask extends DefaultTask {
     private static final Pattern DRY_RUN_TASK_PATTERN = Pattern.compile("(:[\\w:-]+)\\s+SKIPPED");
 
-    @Input
-    public abstract SetProperty<String> getTasksToDryRun();
+    @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
+    public abstract RegularFileProperty getDryRunTasksFile();
 
     @Input
     @org.gradle.api.tasks.Optional
@@ -52,12 +55,15 @@ public abstract class AbstractDryRunTask extends DefaultTask {
     public abstract RegularFileProperty getMarkerOutputFile();
 
     protected final DryRunResult dryRun(List<String> extraArgs) {
-        if (getTasksToDryRun().get().isEmpty()) {
+        Set<String> tasksToDryRun =
+                new TaskListFile(getDryRunTasksFile().getAsFile().get().toPath()).loadTasks();
+
+        if (tasksToDryRun.isEmpty()) {
             getLogger().info("No tasks to dry-run");
             return DryRunResult.success(new TreeSet<>());
         }
 
-        getLogger().info("Dry-running {} tasks", getTasksToDryRun().get().size());
+        getLogger().info("Dry-running {} tasks", tasksToDryRun.size());
 
         GradleConnector connector = GradleConnector.newConnector()
                 .forProjectDirectory(getProjectLayout().getProjectDirectory().getAsFile());
@@ -68,15 +74,12 @@ public abstract class AbstractDryRunTask extends DefaultTask {
             connection
                     .newBuild()
                     .withArguments(buildArguments(extraArgs))
-                    .forTasks(getTasksToDryRun().get().toArray(new String[0]))
+                    .forTasks(tasksToDryRun.toArray(new String[0]))
                     .setStandardOutput(outputStream)
                     .setStandardError(outputStream)
                     .run();
 
-            getLogger()
-                    .info(
-                            "All {} tasks dry-ran successfully",
-                            getTasksToDryRun().get().size());
+            getLogger().info("All {} tasks dry-ran successfully", tasksToDryRun.size());
 
         } catch (Exception e) {
             getLogger().info("Failed to run Dry-run tasks", e);
