@@ -94,9 +94,10 @@ public abstract class AbstractDryRunTask extends DefaultTask {
             return DryRunResult.failure(error);
         }
 
+        String output = outputStream.toString(StandardCharsets.UTF_8);
         Files.writeString(
-                getMarkerOutputFile().get().getAsFile().toPath(), outputStream.toString(StandardCharsets.UTF_8));
-        Set<String> dryRunTasks = parseDryRunResult(outputStream.toString(StandardCharsets.UTF_8));
+                getMarkerOutputFile().get().getAsFile().toPath(), output);
+        Set<String> dryRunTasks = parseDryRunResult(output);
         return DryRunResult.success(dryRunTasks);
     }
 
