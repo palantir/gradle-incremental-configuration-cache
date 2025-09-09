@@ -16,7 +16,10 @@
 
 package com.palantir.gradle.configcache.incremental;
 
+import com.palantir.gradle.configcache.incremental.DryRunResult.Failure;
+import com.palantir.gradle.configcache.incremental.DryRunResult.Success;
 import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
@@ -31,7 +34,7 @@ import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.options.Option;
 
-public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
+public abstract class CheckConfigurationCacheLockTask extends AbstractDryRunTask {
 
     @InputFiles
     @PathSensitive(PathSensitivity.RELATIVE)
@@ -44,17 +47,17 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
     public abstract Property<Boolean> getShouldFix();
 
     public CheckConfigurationCacheLockTask() {
-        getArguments().set(List.of("--quiet", "--no-configuration-cache"));
         getShouldFix().set(false);
-        getDryRunResult()
-                .set(getTemporaryDir()
-                        .toPath()
-                        .resolve("dryRunNoConfigurationCache")
-                        .toFile());
     }
 
     @TaskAction
-    public final void check() {
+    public final void check() throws IOException {
+        DryRunResult result = dryRun(List.of("--quiet", "--no-configuration-cache"));
+
+        if (result instanceof Failure failure) {
+            throw new RuntimeException("Failed to dry run configuration-cacheable tasks: " + failure.errorOutput());
+        }
+
         Path lockPath = getLockFile().getSingleFile().toPath();
         if (Files.notExists(lockPath) && !getShouldFix().get()) {
             throw new ExceptionWithSuggestion(
@@ -66,7 +69,7 @@ public abstract class CheckConfigurationCacheLockTask extends DryRunTask {
                     "./gradlew :checkConfigurationCacheLock --fix");
         }
 
-        Set<String> dryRanTasks = dryRunResult();
+        Set<String> dryRanTasks = ((Success) result).tasks();
 
         if (getShouldFix().get()) {
             TaskListFile.write(lockPath, dryRanTasks);
