@@ -95,7 +95,7 @@ class ValidateConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCac
         result.output.contains('No tasks to run')
     }
 
-    @Requires(value = { !(env['CI'] == "false") })
+    @Requires({!System.getenv("CI")})
     def 'locally does nothing'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << ''
