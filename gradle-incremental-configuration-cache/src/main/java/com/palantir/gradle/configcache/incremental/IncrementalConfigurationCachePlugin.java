@@ -94,6 +94,9 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                     task.dependsOn(taskPath);
                 }
             });
+
+            // Locks need to be up-to-date as we are not running with configuration-cache-compatible-for-all-tasks
+            task.dependsOn(checkLock);
         });
 
         if (onCi()) {
