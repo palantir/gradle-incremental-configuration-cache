@@ -44,7 +44,10 @@ public abstract class RunConfigurationCacheEnabledTask extends AbstractRunTask {
 
     @TaskAction
     public final void check() throws IOException {
-        RunResult run = run(List.of("--configuration-cache", "-Pconfiguration-cache-compatible-for-all-tasks"));
+        RunResult run = run(List.of(
+                "--configuration-cache",
+                "-Pconfiguration-cache-compatible-for-all-tasks",
+                "-Perror-prone.enabled=false"));
 
         if (run instanceof Failure failure) {
             throw new RuntimeException(errorMessage(failure.output()));
