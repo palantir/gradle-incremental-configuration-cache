@@ -15,19 +15,17 @@
  */
 package com.palantir.gradle.configcache.incremental;
 
-import java.util.Set;
+public sealed interface RunResult permits RunResult.Success, RunResult.Failure {
 
-public sealed interface DryRunResult permits DryRunResult.Success, DryRunResult.Failure {
+    record Success(String output) implements RunResult {}
 
-    record Success(Set<String> tasks) implements DryRunResult {}
+    record Failure(String errorOutput) implements RunResult {}
 
-    record Failure(String errorOutput) implements DryRunResult {}
-
-    static DryRunResult success(Set<String> tasks) {
-        return new Success(tasks);
+    static RunResult success(String output) {
+        return new Success(output);
     }
 
-    static DryRunResult failure(String errorOutput) {
+    static RunResult failure(String errorOutput) {
         return new Failure(errorOutput);
     }
 }

@@ -18,8 +18,8 @@ package com.palantir.gradle.configcache.incremental;
 
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
-import com.palantir.gradle.configcache.incremental.DryRunResult.Failure;
-import com.palantir.gradle.configcache.incremental.DryRunResult.Success;
+import com.palantir.gradle.configcache.incremental.RunResult.Failure;
+import com.palantir.gradle.configcache.incremental.RunResult.Success;
 import com.palantir.gradle.utils.circleciartifacts.ArtifactLocation;
 import com.palantir.gradle.utils.circleciartifacts.CircleCiArtifacts;
 import com.palantir.gradle.utils.environmentvariables.EnvironmentVariables;
@@ -31,7 +31,7 @@ import java.util.Optional;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.TaskAction;
 
-public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRunTask {
+public abstract class DryRunConfigurationCacheEnabledTask extends AbstractRunTask {
 
     @Nested
     protected abstract EnvironmentVariables getEnvironmentVariables();
@@ -43,8 +43,7 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
 
     @TaskAction
     public final void check() throws IOException {
-        DryRunResult result =
-                dryRun(List.of("--configuration-cache", "-Pconfiguration-cache-compatible-for-all-tasks"));
+        RunResult result = run(List.of("--configuration-cache", "-Pconfiguration-cache-compatible-for-all-tasks"));
 
         if (result instanceof Success) {
             return;

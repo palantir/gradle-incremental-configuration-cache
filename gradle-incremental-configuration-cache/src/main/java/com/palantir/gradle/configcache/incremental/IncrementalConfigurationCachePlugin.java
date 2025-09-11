@@ -52,6 +52,14 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
     @Override
     public final void apply(Project project) {
+        // ToDo:
+        // - copy to new dir
+        // - run gw without dry run
+        // - disable test stuff
+        // - disable errorprone
+        // - disable docker
+        // - add run all cc compatible tasks task
+
         if (!project.getRootProject().equals(project)) {
             throw new RuntimeException("Must be applied only to root project");
         }
@@ -77,13 +85,13 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
         TaskProvider<CheckConfigurationCacheLockTask> checkLock = project.getTasks()
                 .register("checkConfigurationCacheLock", CheckConfigurationCacheLockTask.class, task -> {
-                    task.getDryRunTasksFile().set(targetTasksPath.toFile());
+                    task.getTasksToRunFile().set(targetTasksPath.toFile());
                     task.getLockFile().from(lockFilePath.toFile());
                 });
 
         TaskProvider<DryRunConfigurationCacheEnabledTask> dryRunTask = project.getTasks()
                 .register("dryRunConfigurationCacheEnabledTasks", DryRunConfigurationCacheEnabledTask.class, task -> {
-                    task.getDryRunTasksFile().set(targetTasksPath.toFile());
+                    task.getTasksToRunFile().set(targetTasksPath.toFile());
                 });
 
         project.getPluginManager().apply(LifecycleBasePlugin.class);

@@ -23,9 +23,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.ProjectLayout;
@@ -39,12 +36,11 @@ import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.tooling.GradleConnector;
 import org.gradle.tooling.ProjectConnection;
 
-public abstract class AbstractDryRunTask extends DefaultTask {
-    private static final Pattern DRY_RUN_TASK_PATTERN = Pattern.compile("(:[\\w:-]+)\\s+SKIPPED");
+public abstract class AbstractRunTask extends DefaultTask {
 
     @InputFiles
     @PathSensitive(PathSensitivity.RELATIVE)
-    public abstract RegularFileProperty getDryRunTasksFile();
+    public abstract RegularFileProperty getTasksToRunFile();
 
     @Input
     @org.gradle.api.tasks.Optional
@@ -56,21 +52,21 @@ public abstract class AbstractDryRunTask extends DefaultTask {
     @OutputFile
     public abstract RegularFileProperty getMarkerOutputFile();
 
-    public AbstractDryRunTask() {
+    public AbstractRunTask() {
         getMarkerOutputFile()
                 .set(getTemporaryDir().toPath().resolve(getName() + ".marker").toFile());
     }
 
-    protected final DryRunResult dryRun(List<String> extraArgs) throws IOException {
+    protected final RunResult run(List<String> extraArgs) throws IOException {
         Set<String> tasksToDryRun =
-                new TaskListFile(getDryRunTasksFile().getAsFile().get().toPath()).loadTasks();
+                new TaskListFile(getTasksToRunFile().getAsFile().get().toPath()).loadTasks();
 
         if (tasksToDryRun.isEmpty()) {
-            getLogger().info("No tasks to dry-run");
-            return DryRunResult.success(new TreeSet<>());
+            getLogger().info("No tasks to run");
+            return RunResult.success("");
         }
 
-        getLogger().info("Dry-running {} tasks", tasksToDryRun.size());
+        getLogger().info("Running {} tasks", tasksToDryRun.size());
 
         GradleConnector connector = GradleConnector.newConnector()
                 .forProjectDirectory(getProjectLayout().getProjectDirectory().getAsFile());
@@ -86,23 +82,21 @@ public abstract class AbstractDryRunTask extends DefaultTask {
                     .setStandardError(outputStream)
                     .run();
 
-            getLogger().info("All {} tasks dry-ran successfully", tasksToDryRun.size());
+            getLogger().info("All {} tasks ran successfully", tasksToDryRun.size());
 
         } catch (Exception e) {
-            getLogger().info("Failed to run Dry-run tasks", e);
+            getLogger().info("Failed to run run tasks", e);
             String error = outputStream.toString(StandardCharsets.UTF_8);
-            return DryRunResult.failure(error);
+            return RunResult.failure(error);
         }
 
         String output = outputStream.toString(StandardCharsets.UTF_8);
         Files.writeString(getMarkerOutputFile().get().getAsFile().toPath(), output);
-        Set<String> dryRunTasks = parseDryRunResult(output);
-        return DryRunResult.success(dryRunTasks);
+        return RunResult.success(output);
     }
 
     private ImmutableList<String> buildArguments(List<String> arguments) {
         return ImmutableList.<String>builder()
-                .add("--dry-run")
                 .add("--console=plain")
                 .addAll(arguments)
                 .addAll(
@@ -111,13 +105,5 @@ public abstract class AbstractDryRunTask extends DefaultTask {
                                         "--init-script=" + getInitScript().get())
                                 : ImmutableList.of())
                 .build();
-    }
-
-    private Set<String> parseDryRunResult(String output) {
-        return DRY_RUN_TASK_PATTERN
-                .matcher(output)
-                .results()
-                .map(match -> match.group(1))
-                .collect(Collectors.toCollection(TreeSet::new));
     }
 }
