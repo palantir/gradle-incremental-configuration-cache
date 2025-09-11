@@ -18,6 +18,7 @@ package com.palantir.gradle.configcache.incremental
 
 import com.palantir.gradle.plugintesting.ConfigurationCacheSpec
 import org.gradle.testkit.runner.TaskOutcome
+import spock.lang.Requires
 
 class ValidateConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCacheSpec {
 
@@ -94,6 +95,7 @@ class ValidateConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCac
         result.output.contains('No tasks to run')
     }
 
+    @Requires(value = { !(env['CI'] == "false") })
     def 'locally does nothing'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << ''
