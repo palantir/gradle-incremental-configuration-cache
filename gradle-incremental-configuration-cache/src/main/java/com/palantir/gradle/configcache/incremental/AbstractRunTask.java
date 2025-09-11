@@ -18,12 +18,15 @@ package com.palantir.gradle.configcache.incremental;
 
 import com.google.common.collect.ImmutableList;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 import javax.inject.Inject;
+import org.apache.commons.io.FileUtils;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.file.RegularFileProperty;
@@ -33,6 +36,7 @@ import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
+import org.gradle.process.ExecOperations;
 import org.gradle.tooling.GradleConnector;
 import org.gradle.tooling.ProjectConnection;
 
@@ -46,8 +50,14 @@ public abstract class AbstractRunTask extends DefaultTask {
     @org.gradle.api.tasks.Optional
     public abstract Property<String> getInitScript();
 
+    @Input
+    public abstract Property<Boolean> getUseClonedDirectory();
+
     @Inject
     protected abstract ProjectLayout getProjectLayout();
+
+    @Inject
+    protected abstract ExecOperations getExecOperations();
 
     @OutputFile
     public abstract RegularFileProperty getMarkerOutputFile();
@@ -55,6 +65,7 @@ public abstract class AbstractRunTask extends DefaultTask {
     public AbstractRunTask() {
         getMarkerOutputFile()
                 .set(getTemporaryDir().toPath().resolve(getName() + ".marker").toFile());
+        getUseClonedDirectory().convention(false);
     }
 
     protected final RunResult run(List<String> extraArgs) throws IOException {
@@ -68,8 +79,76 @@ public abstract class AbstractRunTask extends DefaultTask {
 
         getLogger().info("Running {} tasks", tasksToDryRun.size());
 
-        GradleConnector connector = GradleConnector.newConnector()
-                .forProjectDirectory(getProjectLayout().getProjectDirectory().getAsFile());
+        File projectDir = determineProjectDirectory();
+
+        try {
+            return runTasksInDirectory(projectDir, tasksToDryRun, extraArgs);
+        } finally {
+            cleanupClonedDirectory(projectDir);
+        }
+    }
+
+    private File determineProjectDirectory() throws IOException {
+        if (!getUseClonedDirectory().get()) {
+            return getProjectLayout().getProjectDirectory().getAsFile();
+        }
+
+        Path cloneDir = Files.createTempDirectory("gradle-config-cache-validation-");
+        getLogger().info("Cloning repository to temporary directory: {}", cloneDir);
+
+        cloneRepository(getProjectLayout().getProjectDirectory().getAsFile(), cloneDir.toFile());
+
+        return cloneDir.toFile();
+    }
+
+    private void cloneRepository(File sourceDir, File targetDir) {
+        getExecOperations().exec(execSpec -> {
+            execSpec.setWorkingDir(targetDir.getParentFile());
+            execSpec.commandLine(
+                    "git", "clone", "--shared", "--no-checkout", sourceDir.getAbsolutePath(), targetDir.getName());
+            execSpec.setIgnoreExitValue(false);
+        });
+
+        String currentRef = getCurrentGitRef(sourceDir);
+
+        getExecOperations().exec(execSpec -> {
+            execSpec.setWorkingDir(targetDir);
+            execSpec.commandLine("git", "checkout", "--quiet", currentRef);
+            execSpec.setIgnoreExitValue(false);
+        });
+
+        getLogger().info("Successfully cloned repository to: {}", targetDir);
+    }
+
+    private String getCurrentGitRef(File sourceDir) {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        getExecOperations().exec(execSpec -> {
+            execSpec.setWorkingDir(sourceDir);
+            execSpec.commandLine("git", "rev-parse", "HEAD");
+            execSpec.setStandardOutput(output);
+            execSpec.setIgnoreExitValue(false);
+        });
+
+        return output.toString(StandardCharsets.UTF_8).trim();
+    }
+
+    private void cleanupClonedDirectory(File projectDir) {
+        if (!getUseClonedDirectory().get()) {
+            return;
+        }
+
+        try {
+            FileUtils.deleteDirectory(projectDir);
+            getLogger().info("Cleaned up cloned directory: {}", projectDir);
+        } catch (IOException e) {
+            getLogger().warn("Failed to cleanup cloned directory: {}", projectDir, e);
+        }
+    }
+
+    private RunResult runTasksInDirectory(File projectDir, Set<String> tasksToDryRun, List<String> extraArgs)
+            throws IOException {
+        GradleConnector connector = GradleConnector.newConnector().forProjectDirectory(projectDir);
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(16 * 1024);
 
@@ -85,7 +164,7 @@ public abstract class AbstractRunTask extends DefaultTask {
             getLogger().info("All {} tasks ran successfully", tasksToDryRun.size());
 
         } catch (Exception e) {
-            getLogger().info("Failed to run run tasks", e);
+            getLogger().info("Failed to run tasks", e);
             String error = outputStream.toString(StandardCharsets.UTF_8);
             return RunResult.failure(error);
         }

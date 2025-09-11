@@ -19,42 +19,71 @@ package com.palantir.gradle.configcache.incremental
 import com.palantir.gradle.plugintesting.ConfigurationCacheSpec
 import org.gradle.testkit.runner.TaskOutcome
 
-class DryRunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCacheSpec {
+class RunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCacheSpec {
 
     def setup() {
+        initGitRepo()
+
         // language=gradle
         buildFile << '''
             apply plugin: 'com.palantir.incremental-configuration-cache'
             apply plugin: 'java-library'
             
-            tasks.named('dryRunConfigurationCacheEnabledTasks') {
+            tasks.named('runConfigurationCacheEnabledTasks') {
                 initScript.set(file('.gradle-test-kit/init.gradle').absolutePath)
             }
         '''.stripIndent(true)
 
-        // Put environment-variables in testing mode
-        file('gradle.properties') << '''
+        file('gradle.properties') << """
             org.gradle.configuration-cache=true
             __TESTING=true
+        """.stripIndent(true)
+
+        // We must have runConfigurationCacheEnabledTasks in the allow list to allow
+        // runConfigurationCacheEnabledTasks to run with configuration cache
+        file('gradle/configuration-cache-allowed-tasks.lock') << '''
+            :runConfigurationCacheEnabledTasks
         '''.stripIndent(true)
 
-        // We must have dryRunConfigurationCacheEnabledTasks in the allow list to allow
-        // dryRunConfigurationCacheEnabledTasks to run with configuration cache
-        file('gradle/configuration-cache-allowed-tasks.lock') << '''
-            :dryRunConfigurationCacheEnabledTasks
-        '''.stripIndent(true)
+        commitChanges()
+    }
+
+    def initGitRepo() {
+        executeCommand("git", "init")
+        executeCommand("git", "config", "--local", "user.email", "test@example.com")
+        executeCommand("git", "config", "--local", "user.name", "Test User")
+        executeCommand("git", "add", ".")
+        executeCommand("git", "commit", "--no-gpg-sign", "-m", "Initial commit")
+    }
+
+    def commitChanges() {
+        executeCommand("git", "add", ".")
+        executeCommand("git", "commit", "--no-gpg-sign", "-m", "Commit")
+    }
+
+    def executeCommand(String... command) {
+        def process = new ProcessBuilder(command)
+                .directory(projectDir)
+                .start()
+        process.waitFor()
+        if (process.exitValue() != 0) {
+            throw new RuntimeException("Command failed: ${command.join(' ')}\n" +
+                    "Output: ${process.inputStream.text}\n" +
+                    "Error: ${process.errorStream.text}")
+        }
     }
 
     def 'validates empty task list'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << ''
+        commitChanges()
 
         when:
-        def result = runTasksWithConfigurationCache(true, false, 'dryRunConfigurationCacheEnabledTasks', '--info')
+        def result = runTasksWithConfigurationCache(true, false, 'runConfigurationCacheEnabledTasks', '--info')
 
         then:
-        result.tasks(TaskOutcome.SUCCESS)*.path.contains(':dryRunConfigurationCacheEnabledTasks')
-        result.output.contains('No tasks to dry-run')
+        result.tasks(TaskOutcome.SUCCESS)*.path.contains(':runConfigurationCacheEnabledTasks')
+        result.output.contains('No tasks to run')
     }
 
     def 'validates compatible tasks successfully'() {
@@ -63,19 +92,20 @@ class DryRunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCache
             :compileJava
             :processResources
         '''.stripIndent(true)
+        commitChanges()
 
         when:
-        def result = runTasksWithConfigurationCache('dryRunConfigurationCacheEnabledTasks', '--info')
+        def result = runTasksWithConfigurationCache('runConfigurationCacheEnabledTasks', '--info')
 
         then:
-        result.tasks(TaskOutcome.SUCCESS)*.path.contains(':dryRunConfigurationCacheEnabledTasks')
+        result.tasks(TaskOutcome.SUCCESS)*.path.contains(':runConfigurationCacheEnabledTasks')
     }
 
     def 'fails validation for incompatible tasks'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << '''
             :problematicTask
-            :dryRunConfigurationCacheEnabledTasks
+            :runConfigurationCacheEnabledTasks
         '''.stripIndent(true)
 
         // language=gradle
@@ -87,12 +117,40 @@ class DryRunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCache
                 }
             }
         '''.stripIndent(true)
+        commitChanges()
 
         when:
-        def result = runTasksAndFailWithConfigurationCache('dryRunConfigurationCacheEnabledTasks')
+        def result = runTasksAndFailWithConfigurationCache('runConfigurationCacheEnabledTasks')
 
         then:
-        result.tasks(TaskOutcome.FAILED)*.path.contains(':dryRunConfigurationCacheEnabledTasks')
+        result.tasks(TaskOutcome.FAILED)*.path.contains(':runConfigurationCacheEnabledTasks')
+        result.output.contains('CONFIGURATION CACHE ALLOW LIST VALIDATION FAILED')
+    }
+
+    def 'fails validation for tasks with execution time configuration cache issues'() {
+        given:
+        file('gradle/configuration-cache-allowed-tasks') << '''
+            :badExecutionTask
+            :runConfigurationCacheEnabledTasks
+        '''.stripIndent(true)
+
+        // language=gradle
+        buildFile << '''
+            tasks.register('badExecutionTask') {
+                inputs.property('foo', 'bar')
+                doLast {
+                    def file = new File(project.buildDir, "undeclared.txt")
+                    file.text
+                }
+            }
+        '''.stripIndent(true)
+        commitChanges()
+
+        when:
+        def result = runTasksAndFailWithConfigurationCache('runConfigurationCacheEnabledTasks')
+
+        then:
+        result.tasks(TaskOutcome.FAILED)*.path.contains(':runConfigurationCacheEnabledTasks')
         result.output.contains('CONFIGURATION CACHE ALLOW LIST VALIDATION FAILED')
     }
 
@@ -100,7 +158,7 @@ class DryRunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCache
         given:
         file('gradle/configuration-cache-allowed-tasks') << '''
             :problematicTask
-            :dryRunConfigurationCacheEnabledTasks
+            :runConfigurationCacheEnabledTasks
         '''.stripIndent(true)
 
         // language=gradle
@@ -112,9 +170,10 @@ class DryRunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCache
                 }
             }
         '''.stripIndent(true)
+        commitChanges()
 
         when:
-        def result = runTasksAndFailWithConfigurationCache('dryRunConfigurationCacheEnabledTasks',
+        def result = runTasksAndFailWithConfigurationCache('runConfigurationCacheEnabledTasks',
                 '-P__TESTING_CIRCLECI=true',
                 '-P__TESTING_CIRCLE_ARTIFACTS=' + getProjectDir().toPath().resolve('circle-artifacts'),
                 '-P__TESTING_CIRCLE_PROJECT_USERNAME=test-username',
@@ -125,7 +184,7 @@ class DryRunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCache
         )
 
         then:
-        result.tasks(TaskOutcome.FAILED)*.path.contains(':dryRunConfigurationCacheEnabledTasks')
+        result.tasks(TaskOutcome.FAILED)*.path.contains(':runConfigurationCacheEnabledTasks')
         result.output.contains('CONFIGURATION CACHE ALLOW LIST VALIDATION FAILED')
 
         def report = new File(projectDir, 'circle-artifacts/configuration-cache-validation-report/validation-report.txt')
@@ -137,30 +196,33 @@ class DryRunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCache
     def 'validation task is hooked into check task'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << ''
+        commitChanges()
+
         when:
         def result = runTasks('check', '--dry-run')
 
         then:
-        result.output.contains(':dryRunConfigurationCacheEnabledTasks')
+        result.output.contains(':runConfigurationCacheEnabledTasks')
     }
 
-    def 'dryRunConfigurationCacheEnabledTasks is up-to-date on second run for success'() {
+    def 'runConfigurationCacheEnabledTasks is up-to-date on second run for success'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << '''
             :compileJava
             :processResources
         '''.stripIndent(true)
+        commitChanges()
 
         when:
-        def firstRun = runTasksWithConfigurationCache('dryRunConfigurationCacheEnabledTasks')
+        def firstRun = runTasksWithConfigurationCache('runConfigurationCacheEnabledTasks')
 
         then:
-        firstRun.tasks(TaskOutcome.SUCCESS)*.path.contains(':dryRunConfigurationCacheEnabledTasks')
+        firstRun.tasks(TaskOutcome.SUCCESS)*.path.contains(':runConfigurationCacheEnabledTasks')
 
         when:
-        def secondRun = runTasksWithConfigurationCache('dryRunConfigurationCacheEnabledTasks')
+        def secondRun = runTasksWithConfigurationCache('runConfigurationCacheEnabledTasks')
 
         then:
-        secondRun.tasks(TaskOutcome.UP_TO_DATE)*.path.contains(':dryRunConfigurationCacheEnabledTasks')
+        secondRun.tasks(TaskOutcome.UP_TO_DATE)*.path.contains(':runConfigurationCacheEnabledTasks')
     }
 }

@@ -21,14 +21,17 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.Set;
 import javax.inject.Inject;
 import org.apache.commons.io.FileUtils;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.file.ProjectLayout;
+import org.gradle.api.publish.maven.tasks.PublishToMavenRepository;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.TaskProvider;
+import org.gradle.api.tasks.testing.Test;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.util.GradleVersion;
 import org.slf4j.Logger;
@@ -53,8 +56,8 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
     @Override
     public final void apply(Project project) {
         // ToDo:
-        // - copy to new dir
-        // - run gw without dry run
+        // - copy to new dir ✔
+        // - run gw without dry run ✔
         // - disable test stuff
         // - disable errorprone
         // - disable docker
@@ -89,8 +92,8 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                     task.getLockFile().from(lockFilePath.toFile());
                 });
 
-        TaskProvider<DryRunConfigurationCacheEnabledTask> dryRunTask = project.getTasks()
-                .register("dryRunConfigurationCacheEnabledTasks", DryRunConfigurationCacheEnabledTask.class, task -> {
+        TaskProvider<RunConfigurationCacheEnabledTask> dryRunTask = project.getTasks()
+                .register("runConfigurationCacheEnabledTasks", RunConfigurationCacheEnabledTask.class, task -> {
                     task.getTasksToRunFile().set(targetTasksPath.toFile());
                 });
 
@@ -162,11 +165,30 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
     }
 
     private void configureTaskCompatibility(Project project, Set<String> lockListTasks) {
-        // We need a way to always run with configuration cache for every task. This is needed as in some cases the
-        // allow list and its lock file will be out of sync. In these cases we still want the
-        // dryRunConfigurationCacheEnabledTasks task to all its dry-run tasks with configuration cache, so that all
-        // issues (lock file out of date and tasks that are not CC friendly) are surfaced at once.
+        // When the 'configuration-cache-compatible-for-all-tasks' property is set, we want to ensure that
+        // all tasks are run with configuration cache enabled—even if the allow list and its lock file are
+        // out of sync. This surfaces all configuration cache issues (including those due to out-of-date
+        // lock files or tasks that are not CC-friendly) at once.
+        //
+        // To make this process efficient and avoid performing time-consuming or side-effecting work:
+        //   - Set Test tasks to dryRun mode so tests are discovered but not executed.
+        //   - Disable Maven publish and docker push tasks to avoid publishing artifacts or pushing images.
+        //
+        // This allows for fast validation of configuration cache compatibility across the project without
+        // actually running tests, publishing, or pushing.
         if (project.hasProperty("configuration-cache-compatible-for-all-tasks")) {
+            project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
+                if (task instanceof Test testTask) {
+                    testTask.getDryRun().set(true);
+                }
+                if (task instanceof PublishToMavenRepository) {
+                    task.setEnabled(false);
+                }
+                if (task.getName().toLowerCase(Locale.ROOT).contains("docker")
+                        && task.getName().toLowerCase(Locale.ROOT).contains("push")) {
+                    task.setEnabled(false);
+                }
+            }));
             return;
         }
 

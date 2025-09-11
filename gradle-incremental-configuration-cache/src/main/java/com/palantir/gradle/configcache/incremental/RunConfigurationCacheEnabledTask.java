@@ -31,7 +31,7 @@ import java.util.Optional;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.TaskAction;
 
-public abstract class DryRunConfigurationCacheEnabledTask extends AbstractRunTask {
+public abstract class RunConfigurationCacheEnabledTask extends AbstractRunTask {
 
     @Nested
     protected abstract EnvironmentVariables getEnvironmentVariables();
@@ -39,7 +39,9 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractRunTas
     @Nested
     protected abstract CircleCiArtifacts getCircleCiArtifacts();
 
-    public DryRunConfigurationCacheEnabledTask() {}
+    public RunConfigurationCacheEnabledTask() {
+        getUseClonedDirectory().set(true);
+    }
 
     @TaskAction
     public final void check() throws IOException {
