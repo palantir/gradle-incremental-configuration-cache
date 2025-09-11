@@ -55,13 +55,6 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
     @Override
     public final void apply(Project project) {
-        // ToDo:
-        // - copy to new dir ✔
-        // - run gw without dry run ✔
-        // - disable test stuff
-        // - disable errorprone
-        // - disable docker
-        // - add run all cc compatible tasks task
 
         if (!project.getRootProject().equals(project)) {
             throw new RuntimeException("Must be applied only to root project");
@@ -92,19 +85,34 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                     task.getLockFile().from(lockFilePath.toFile());
                 });
 
-        TaskProvider<RunConfigurationCacheEnabledTask> dryRunTask = project.getTasks()
-                .register("runConfigurationCacheEnabledTasks", RunConfigurationCacheEnabledTask.class, task -> {
-                    task.getTasksToRunFile().set(targetTasksPath.toFile());
-                });
-
         project.getPluginManager().apply(LifecycleBasePlugin.class);
-        project.getTasks().named("check").configure(task -> task.dependsOn(checkLock, dryRunTask));
+        project.getTasks().named("check").configure(task -> task.dependsOn(checkLock));
+
+        project.getTasks().register("runAllConfigurationCacheEnabledTasks", task -> {
+            new TaskListFile(targetTasksPath).loadTasks().forEach(taskPath -> {
+                if (!taskPath.contains("runAllConfigurationCacheEnabledTasks")) {
+                    task.dependsOn(taskPath);
+                }
+            });
+        });
+
+        if (onCi()) {
+            // We only want to add the ValidateConfigurationCacheEnabledTask when running on CI
+            TaskProvider<ValidateConfigurationCacheEnabledTask> dryRunTask = project.getTasks()
+                    .register(
+                            "validateConfigurationCacheEnabledTasks",
+                            ValidateConfigurationCacheEnabledTask.class,
+                            task -> {
+                                task.getTasksToRunFile().set(targetTasksPath.toFile());
+                            });
+            project.getTasks().named("check").configure(task -> task.dependsOn(dryRunTask));
+        }
 
         ensureReportsDirIsSymlinkedToCircleArtifacts();
     }
 
     private void ensureReportsDirIsSymlinkedToCircleArtifacts() {
-        if (!getEnvironmentVariables().envVarOrFromTestingProperty("CIRCLECI").isPresent()) {
+        if (!onCi()) {
             return;
         }
 
@@ -199,5 +207,9 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                                 .formatted(TARGET_TASKS_FILE));
             }
         }));
+    }
+
+    private boolean onCi() {
+        return getEnvironmentVariables().envVarOrFromTestingProperty("CIRCLECI").isPresent();
     }
 }

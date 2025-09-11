@@ -26,7 +26,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 import javax.inject.Inject;
-import org.apache.commons.io.FileUtils;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.file.RegularFileProperty;
@@ -79,13 +78,7 @@ public abstract class AbstractRunTask extends DefaultTask {
 
         getLogger().info("Running {} tasks", tasksToDryRun.size());
 
-        File projectDir = determineProjectDirectory();
-
-        try {
-            return runTasksInDirectory(projectDir, tasksToDryRun, extraArgs);
-        } finally {
-            cleanupClonedDirectory(projectDir);
-        }
+        return runTasksInDirectory(determineProjectDirectory(), tasksToDryRun, extraArgs);
     }
 
     private File determineProjectDirectory() throws IOException {
@@ -105,7 +98,13 @@ public abstract class AbstractRunTask extends DefaultTask {
         getExecOperations().exec(execSpec -> {
             execSpec.setWorkingDir(targetDir.getParentFile());
             execSpec.commandLine(
-                    "git", "clone", "--shared", "--no-checkout", sourceDir.getAbsolutePath(), targetDir.getName());
+                    "git",
+                    "clone",
+                    "--quiet",
+                    "--shared",
+                    "--no-checkout",
+                    sourceDir.getAbsolutePath(),
+                    targetDir.getName());
             execSpec.setIgnoreExitValue(false);
         });
 
@@ -131,19 +130,6 @@ public abstract class AbstractRunTask extends DefaultTask {
         });
 
         return output.toString(StandardCharsets.UTF_8).trim();
-    }
-
-    private void cleanupClonedDirectory(File projectDir) {
-        if (!getUseClonedDirectory().get()) {
-            return;
-        }
-
-        try {
-            FileUtils.deleteDirectory(projectDir);
-            getLogger().info("Cleaned up cloned directory: {}", projectDir);
-        } catch (IOException e) {
-            getLogger().warn("Failed to cleanup cloned directory: {}", projectDir, e);
-        }
     }
 
     private RunResult runTasksInDirectory(File projectDir, Set<String> tasksToDryRun, List<String> extraArgs)

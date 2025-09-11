@@ -77,14 +77,14 @@ public abstract class CheckConfigurationCacheLockTask extends AbstractRunTask {
 
         if (getShouldFix().get()) {
             TaskListFile.write(lockPath, dryRanTasks);
-            getLogger().lifecycle("Lock file updated with {} tasks", dryRanTasks.size());
+            getLogger().info("Lock file updated with {} tasks", dryRanTasks.size());
             return;
         }
 
         Set<String> lockFileTasks = new TaskListFile(lockPath).loadTasks();
 
         if (lockFileTasks.equals(dryRanTasks)) {
-            getLogger().lifecycle("Lock file is up to date with {} tasks", lockFileTasks.size());
+            getLogger().info("Lock file is up to date with {} tasks", lockFileTasks.size());
             return;
         }
 

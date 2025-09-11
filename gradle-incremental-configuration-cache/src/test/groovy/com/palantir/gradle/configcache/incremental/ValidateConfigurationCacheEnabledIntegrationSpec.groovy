@@ -19,7 +19,7 @@ package com.palantir.gradle.configcache.incremental
 import com.palantir.gradle.plugintesting.ConfigurationCacheSpec
 import org.gradle.testkit.runner.TaskOutcome
 
-class RunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCacheSpec {
+class ValidateConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCacheSpec {
 
     def setup() {
         initGitRepo()
@@ -29,20 +29,28 @@ class RunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCacheSpe
             apply plugin: 'com.palantir.incremental-configuration-cache'
             apply plugin: 'java-library'
             
-            tasks.named('runConfigurationCacheEnabledTasks') {
+            tasks.named('validateConfigurationCacheEnabledTasks') {
                 initScript.set(file('.gradle-test-kit/init.gradle').absolutePath)
             }
         '''.stripIndent(true)
 
+        def circleArtifactsDir = new File(projectDir, 'circle-artifacts')
         file('gradle.properties') << """
             org.gradle.configuration-cache=true
             __TESTING=true
+            __TESTING_CIRCLECI=true
+            __TESTING_CIRCLE_ARTIFACTS=$circleArtifactsDir.absolutePath
+            __TESTING_CIRCLE_PROJECT_USERNAME=test-username
+            __TESTING_CIRCLE_PROJECT_REPONAME=test-repo
+            __TESTING_CIRCLE_BUILD_NUM=123
+            __TESTING_CIRCLE_NODE_INDEX=0
+            __TESTING_CIRCLE_WORKFLOW_JOB_ID=123
         """.stripIndent(true)
 
-        // We must have runConfigurationCacheEnabledTasks in the allow list to allow
-        // runConfigurationCacheEnabledTasks to run with configuration cache
+        // We must have validateConfigurationCacheEnabledTasks in the allow list to allow
+        // validateConfigurationCacheEnabledTasks to run with configuration cache
         file('gradle/configuration-cache-allowed-tasks.lock') << '''
-            :runConfigurationCacheEnabledTasks
+            :validateConfigurationCacheEnabledTasks
         '''.stripIndent(true)
 
         commitChanges()
@@ -79,11 +87,23 @@ class RunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCacheSpe
         commitChanges()
 
         when:
-        def result = runTasksWithConfigurationCache(true, false, 'runConfigurationCacheEnabledTasks', '--info')
+        def result = runTasksWithConfigurationCache(true, false, 'validateConfigurationCacheEnabledTasks', '--info')
 
         then:
-        result.tasks(TaskOutcome.SUCCESS)*.path.contains(':runConfigurationCacheEnabledTasks')
+        result.tasks(TaskOutcome.SUCCESS)*.path.contains(':validateConfigurationCacheEnabledTasks')
         result.output.contains('No tasks to run')
+    }
+
+    def 'locally does nothing'() {
+        given:
+        file('gradle/configuration-cache-allowed-tasks') << ''
+        file('gradle.properties').text = 'org.gradle.configuration-cache=true'
+
+        when:
+        def result = runTasksAndFailWithConfigurationCache('validateConfigurationCacheEnabledTasks')
+
+        then:
+        result.output.contains("Task with name 'validateConfigurationCacheEnabledTasks' not found in root project")
     }
 
     def 'validates compatible tasks successfully'() {
@@ -95,17 +115,17 @@ class RunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCacheSpe
         commitChanges()
 
         when:
-        def result = runTasksWithConfigurationCache('runConfigurationCacheEnabledTasks', '--info')
+        def result = runTasksWithConfigurationCache('validateConfigurationCacheEnabledTasks', '--info')
 
         then:
-        result.tasks(TaskOutcome.SUCCESS)*.path.contains(':runConfigurationCacheEnabledTasks')
+        result.tasks(TaskOutcome.SUCCESS)*.path.contains(':validateConfigurationCacheEnabledTasks')
     }
 
     def 'fails validation for incompatible tasks'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << '''
             :problematicTask
-            :runConfigurationCacheEnabledTasks
+            :validateConfigurationCacheEnabledTasks
         '''.stripIndent(true)
 
         // language=gradle
@@ -120,18 +140,23 @@ class RunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCacheSpe
         commitChanges()
 
         when:
-        def result = runTasksAndFailWithConfigurationCache('runConfigurationCacheEnabledTasks')
+        def result = runTasksAndFailWithConfigurationCache('validateConfigurationCacheEnabledTasks')
 
         then:
-        result.tasks(TaskOutcome.FAILED)*.path.contains(':runConfigurationCacheEnabledTasks')
+        result.tasks(TaskOutcome.FAILED)*.path.contains(':validateConfigurationCacheEnabledTasks')
         result.output.contains('CONFIGURATION CACHE ALLOW LIST VALIDATION FAILED')
+
+        def report = new File(projectDir, 'circle-artifacts/configuration-cache-validation-report/validation-report.txt')
+        report.exists()
+
+        report.text.contains("1 problem was found storing the configuration cache.")
     }
 
     def 'fails validation for tasks with execution time configuration cache issues'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << '''
             :badExecutionTask
-            :runConfigurationCacheEnabledTasks
+            :validateConfigurationCacheEnabledTasks
         '''.stripIndent(true)
 
         // language=gradle
@@ -147,44 +172,10 @@ class RunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCacheSpe
         commitChanges()
 
         when:
-        def result = runTasksAndFailWithConfigurationCache('runConfigurationCacheEnabledTasks')
+        def result = runTasksAndFailWithConfigurationCache('validateConfigurationCacheEnabledTasks')
 
         then:
-        result.tasks(TaskOutcome.FAILED)*.path.contains(':runConfigurationCacheEnabledTasks')
-        result.output.contains('CONFIGURATION CACHE ALLOW LIST VALIDATION FAILED')
-    }
-
-    def 'fails validation for incompatible tasks on CI creates report'() {
-        given:
-        file('gradle/configuration-cache-allowed-tasks') << '''
-            :problematicTask
-            :runConfigurationCacheEnabledTasks
-        '''.stripIndent(true)
-
-        // language=gradle
-        buildFile << '''
-            tasks.register('problematicTask'){
-                def proj = project
-                doLast {
-                    println "Project: ${proj.name}"
-                }
-            }
-        '''.stripIndent(true)
-        commitChanges()
-
-        when:
-        def result = runTasksAndFailWithConfigurationCache('runConfigurationCacheEnabledTasks',
-                '-P__TESTING_CIRCLECI=true',
-                '-P__TESTING_CIRCLE_ARTIFACTS=' + getProjectDir().toPath().resolve('circle-artifacts'),
-                '-P__TESTING_CIRCLE_PROJECT_USERNAME=test-username',
-                '-P__TESTING_CIRCLE_PROJECT_REPONAME=test-repo',
-                '-P__TESTING_CIRCLE_BUILD_NUM=123',
-                '-P__TESTING_CIRCLE_NODE_INDEX=0',
-                '-P__TESTING_CIRCLE_WORKFLOW_JOB_ID=123'
-        )
-
-        then:
-        result.tasks(TaskOutcome.FAILED)*.path.contains(':runConfigurationCacheEnabledTasks')
+        result.tasks(TaskOutcome.FAILED)*.path.contains(':validateConfigurationCacheEnabledTasks')
         result.output.contains('CONFIGURATION CACHE ALLOW LIST VALIDATION FAILED')
 
         def report = new File(projectDir, 'circle-artifacts/configuration-cache-validation-report/validation-report.txt')
@@ -202,10 +193,10 @@ class RunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCacheSpe
         def result = runTasks('check', '--dry-run')
 
         then:
-        result.output.contains(':runConfigurationCacheEnabledTasks')
+        result.output.contains(':validateConfigurationCacheEnabledTasks')
     }
 
-    def 'runConfigurationCacheEnabledTasks is up-to-date on second run for success'() {
+    def 'validateConfigurationCacheEnabledTasks is up-to-date on second run for success'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << '''
             :compileJava
@@ -214,15 +205,15 @@ class RunConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCacheSpe
         commitChanges()
 
         when:
-        def firstRun = runTasksWithConfigurationCache('runConfigurationCacheEnabledTasks')
+        def firstRun = runTasksWithConfigurationCache('validateConfigurationCacheEnabledTasks')
 
         then:
-        firstRun.tasks(TaskOutcome.SUCCESS)*.path.contains(':runConfigurationCacheEnabledTasks')
+        firstRun.tasks(TaskOutcome.SUCCESS)*.path.contains(':validateConfigurationCacheEnabledTasks')
 
         when:
-        def secondRun = runTasksWithConfigurationCache('runConfigurationCacheEnabledTasks')
+        def secondRun = runTasksWithConfigurationCache('validateConfigurationCacheEnabledTasks')
 
         then:
-        secondRun.tasks(TaskOutcome.UP_TO_DATE)*.path.contains(':runConfigurationCacheEnabledTasks')
+        secondRun.tasks(TaskOutcome.UP_TO_DATE)*.path.contains(':validateConfigurationCacheEnabledTasks')
     }
 }
