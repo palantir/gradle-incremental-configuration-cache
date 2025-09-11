@@ -19,7 +19,6 @@ package com.palantir.gradle.configcache.incremental;
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
 import com.palantir.gradle.configcache.incremental.RunResult.Failure;
-import com.palantir.gradle.configcache.incremental.RunResult.Success;
 import com.palantir.gradle.utils.circleciartifacts.ArtifactLocation;
 import com.palantir.gradle.utils.circleciartifacts.CircleCiArtifacts;
 import com.palantir.gradle.utils.environmentvariables.EnvironmentVariables;
@@ -45,14 +44,11 @@ public abstract class RunConfigurationCacheEnabledTask extends AbstractRunTask {
 
     @TaskAction
     public final void check() throws IOException {
-        RunResult result = run(List.of("--configuration-cache", "-Pconfiguration-cache-compatible-for-all-tasks"));
+        RunResult run = run(List.of("--configuration-cache", "-Pconfiguration-cache-compatible-for-all-tasks"));
 
-        if (result instanceof Success) {
-            return;
+        if (run instanceof Failure failure) {
+            throw new RuntimeException(errorMessage(failure.output()));
         }
-
-        String message = errorMessage(((Failure) result).errorOutput());
-        throw new RuntimeException(message);
     }
 
     private String errorMessage(String output) {

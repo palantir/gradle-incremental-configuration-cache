@@ -19,13 +19,13 @@ public sealed interface RunResult permits RunResult.Success, RunResult.Failure {
 
     record Success(String output) implements RunResult {}
 
-    record Failure(String errorOutput) implements RunResult {}
+    record Failure(String output) implements RunResult {}
 
     static RunResult success(String output) {
         return new Success(output);
     }
 
-    static RunResult failure(String errorOutput) {
-        return new Failure(errorOutput);
+    static RunResult failure(String output) {
+        return new Failure(output);
     }
 }

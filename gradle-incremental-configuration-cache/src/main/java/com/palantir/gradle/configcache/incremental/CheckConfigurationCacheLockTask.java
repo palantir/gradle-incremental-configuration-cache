@@ -59,7 +59,7 @@ public abstract class CheckConfigurationCacheLockTask extends AbstractRunTask {
         RunResult result = run(List.of("--dry-run", "--quiet", "--no-configuration-cache"));
 
         if (result instanceof Failure failure) {
-            throw new RuntimeException("Failed to dry run configuration-cacheable tasks: " + failure.errorOutput());
+            throw new RuntimeException("Failed to dry run configuration-cacheable tasks: " + failure.output());
         }
 
         Path lockPath = getLockFile().getSingleFile().toPath();
