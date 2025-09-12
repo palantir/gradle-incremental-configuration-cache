@@ -95,41 +95,15 @@ public abstract class AbstractRunTask extends DefaultTask {
     }
 
     private void cloneRepository(File sourceDir, File targetDir) {
+        // Use git's local clone with automatic checkout of current state
         getExecOperations().exec(execSpec -> {
             execSpec.setWorkingDir(targetDir.getParentFile());
             execSpec.commandLine(
-                    "git",
-                    "clone",
-                    "--quiet",
-                    "--shared",
-                    "--no-checkout",
-                    sourceDir.getAbsolutePath(),
-                    targetDir.getName());
-            execSpec.setIgnoreExitValue(false);
-        });
-
-        String currentRef = getCurrentGitRef(sourceDir);
-
-        getExecOperations().exec(execSpec -> {
-            execSpec.setWorkingDir(targetDir);
-            execSpec.commandLine("git", "checkout", "--quiet", currentRef);
+                    "git", "clone", "--quiet", "--shared", sourceDir.getAbsolutePath(), targetDir.getName());
             execSpec.setIgnoreExitValue(false);
         });
 
         getLogger().info("Successfully cloned repository to: {}", targetDir);
-    }
-
-    private String getCurrentGitRef(File sourceDir) {
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-
-        getExecOperations().exec(execSpec -> {
-            execSpec.setWorkingDir(sourceDir);
-            execSpec.commandLine("git", "rev-parse", "HEAD");
-            execSpec.setStandardOutput(output);
-            execSpec.setIgnoreExitValue(false);
-        });
-
-        return output.toString(StandardCharsets.UTF_8).trim();
     }
 
     private RunResult runTasksInDirectory(File projectDir, Set<String> tasksToDryRun, List<String> extraArgs)
