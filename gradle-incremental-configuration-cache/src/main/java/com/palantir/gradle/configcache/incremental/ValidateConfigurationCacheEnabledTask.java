@@ -47,7 +47,7 @@ public abstract class ValidateConfigurationCacheEnabledTask extends AbstractRunT
         RunResult run = run(List.of(
                 "--configuration-cache",
                 "-Pconfiguration-cache-compatible-for-all-tasks",
-                "-Perror-prone.enabled=false"));
+                "-PerrorProneDisable"));
 
         if (run instanceof Failure failure) {
             throw new RuntimeException(errorMessage(failure.output()));
