@@ -137,6 +137,7 @@ public abstract class AbstractRunTask extends DefaultTask {
     private ImmutableList<String> buildArguments(List<String> arguments) {
         return ImmutableList.<String>builder()
                 .add("--console=plain")
+                .add("--rerun-tasks")
                 .addAll(arguments)
                 .addAll(
                         getInitScript().isPresent() && !getInitScript().get().isBlank()

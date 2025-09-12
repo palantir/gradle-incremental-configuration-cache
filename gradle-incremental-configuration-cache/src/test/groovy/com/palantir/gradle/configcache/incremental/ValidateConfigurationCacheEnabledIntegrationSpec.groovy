@@ -95,19 +95,6 @@ class ValidateConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCac
         result.output.contains('No tasks to run')
     }
 
-    @Requires({!System.getenv("CI")})
-    def 'locally does nothing'() {
-        given:
-        file('gradle/configuration-cache-allowed-tasks') << ''
-        file('gradle.properties').text = 'org.gradle.configuration-cache=true'
-
-        when:
-        def result = runTasksAndFailWithConfigurationCache('validateConfigurationCacheEnabledTasks')
-
-        then:
-        result.output.contains("Task with name 'validateConfigurationCacheEnabledTasks' not found in root project")
-    }
-
     def 'validates compatible tasks successfully'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << '''
@@ -186,7 +173,7 @@ class ValidateConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCac
         report.text.contains("1 problem was found storing the configuration cache.")
     }
 
-    def 'validation task is hooked into check task'() {
+    def 'validation task is hooked into check task on CI'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << ''
         commitChanges()
@@ -196,6 +183,20 @@ class ValidateConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCac
 
         then:
         result.output.contains(':validateConfigurationCacheEnabledTasks')
+    }
+
+    @Requires({!System.getenv("CI")})
+    def 'validation task is not hooked into check task when local'() {
+        given:
+        file('gradle/configuration-cache-allowed-tasks') << ''
+        file('gradle.properties').text = 'org.gradle.configuration-cache=true'
+        commitChanges()
+
+        when:
+        def result = runTasks('check', '--dry-run')
+
+        then:
+        !result.output.contains(':validateConfigurationCacheEnabledTasks')
     }
 
     def 'validateConfigurationCacheEnabledTasks is up-to-date on second run for success'() {

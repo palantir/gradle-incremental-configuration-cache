@@ -88,27 +88,15 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         project.getPluginManager().apply(LifecycleBasePlugin.class);
         project.getTasks().named("check").configure(task -> task.dependsOn(checkLock));
 
-        project.getTasks().register("runAllConfigurationCacheEnabledTasks", task -> {
-            new TaskListFile(targetTasksPath).loadTasks().forEach(taskPath -> {
-                if (!taskPath.contains("runAllConfigurationCacheEnabledTasks")) {
-                    task.dependsOn(taskPath);
-                }
-            });
-
-            // Locks need to be up-to-date as we are not running with configuration-cache-compatible-for-all-tasks
-            task.dependsOn(checkLock);
-        });
+        TaskProvider<ValidateConfigurationCacheEnabledTask> validationTask = project.getTasks()
+                .register(
+                        "validateConfigurationCacheEnabledTasks", ValidateConfigurationCacheEnabledTask.class, task -> {
+                            task.getTasksToRunFile().set(targetTasksPath.toFile());
+                        });
 
         if (onCi()) {
-            // We only want to add the ValidateConfigurationCacheEnabledTask when running on CI
-            TaskProvider<ValidateConfigurationCacheEnabledTask> dryRunTask = project.getTasks()
-                    .register(
-                            "validateConfigurationCacheEnabledTasks",
-                            ValidateConfigurationCacheEnabledTask.class,
-                            task -> {
-                                task.getTasksToRunFile().set(targetTasksPath.toFile());
-                            });
-            project.getTasks().named("check").configure(task -> task.dependsOn(dryRunTask));
+            // We only want to add the ValidateConfigurationCacheEnabledTask to check when running on CI
+            project.getTasks().named("check").configure(task -> task.dependsOn(validationTask));
         }
 
         ensureReportsDirIsSymlinkedToCircleArtifacts();

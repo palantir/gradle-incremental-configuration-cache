@@ -71,14 +71,8 @@ The `checkConfigurationCacheLock` task is automatically added to the `check` lif
 ./gradlew check  # Fails if lock file is out of date
 ```
 
-The `validateConfigurationCacheEnabledTasks` task is automatically added to the `check` lifecycle task, ensuring all tasks in the allow list are configuration cache compatible:
+The `validateConfigurationCacheEnabledTasks` task is automatically added to the check lifecycle task, ensuring all tasks in the allow list are configuration cache compatible. We chose to not run it locally to preserve local build performance. However, you can run it like so:
+
 ```bash
 ./gradlew validateConfigurationCacheEnabledTasks  # Fails if any task is not compatible with configuration cache
-```
-
-#### Local validation
-
-The `runAllConfigurationCacheEnabledTasks` task can be manually triggered to run all tasks in the allow list
-```bash
-./gradlew runAllConfigurationCacheEnabledTasks  # Runs all tasks in the allow list
 ```
