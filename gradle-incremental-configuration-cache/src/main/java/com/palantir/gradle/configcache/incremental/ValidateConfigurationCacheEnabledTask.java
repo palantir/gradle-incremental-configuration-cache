@@ -21,7 +21,6 @@ import com.google.common.base.Throwables;
 import com.palantir.gradle.configcache.incremental.RunResult.Failure;
 import com.palantir.gradle.utils.circleciartifacts.ArtifactLocation;
 import com.palantir.gradle.utils.circleciartifacts.CircleCiArtifacts;
-import com.palantir.gradle.utils.environmentvariables.EnvironmentVariables;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,9 +30,6 @@ import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.TaskAction;
 
 public abstract class ValidateConfigurationCacheEnabledTask extends AbstractRunTask {
-
-    @Nested
-    protected abstract EnvironmentVariables getEnvironmentVariables();
 
     @Nested
     protected abstract CircleCiArtifacts getCircleCiArtifacts();
