@@ -42,7 +42,9 @@ public abstract class ValidateConfigurationCachePlugin implements Plugin<Project
 
         TaskProvider<ValidateConfigurationCacheEnabledTask> validationTask = project.getTasks()
                 .register(
-                        "validateConfigurationCacheEnabledTasks", ValidateConfigurationCacheEnabledTask.class, task -> {
+                        ValidateConfigurationCacheEnabledTask.VALIDATION_TASK_NAME,
+                        ValidateConfigurationCacheEnabledTask.class,
+                        task -> {
                             task.getTasksToRunFile().set(targetTasksPath.toFile());
                             task.onlyIf("Running on CircleCI or explicitly enabled", _t -> getEnvironmentVariables()
                                     .envVarOrFromTestingProperty("CIRCLECI")

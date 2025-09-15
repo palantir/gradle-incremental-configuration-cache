@@ -31,6 +31,8 @@ import org.gradle.api.tasks.TaskAction;
 
 public abstract class ValidateConfigurationCacheEnabledTask extends AbstractRunTask {
 
+    static final String VALIDATION_TASK_NAME = "validateConfigurationCacheEnabledTasks";
+
     @Nested
     protected abstract CircleCiArtifacts getCircleCiArtifacts();
 
@@ -48,7 +50,7 @@ public abstract class ValidateConfigurationCacheEnabledTask extends AbstractRunT
                 "-PerrorProneDisable",
                 // prevent recursion
                 "-x",
-                "validateConfigurationCacheEnabledTasks"));
+                VALIDATION_TASK_NAME));
 
         if (run instanceof Failure failure) {
             throw new RuntimeException(errorMessage(failure.output()));
