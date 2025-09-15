@@ -45,7 +45,10 @@ public abstract class ValidateConfigurationCacheEnabledTask extends AbstractRunT
                 "--continue",
                 "-Pconfiguration-cache-compatible-for-all-tasks",
                 "-Pprevent-dangerous-task-operations",
-                "-PerrorProneDisable"));
+                "-PerrorProneDisable",
+                // prevent recursion
+                "-x",
+                "validateConfigurationCacheEnabledTasks"));
 
         if (run instanceof Failure failure) {
             throw new RuntimeException(errorMessage(failure.output()));

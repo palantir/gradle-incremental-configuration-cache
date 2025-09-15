@@ -185,20 +185,6 @@ class ValidateConfigurationCacheEnabledIntegrationSpec  extends ConfigurationCac
         result.output.contains(':validateConfigurationCacheEnabledTasks')
     }
 
-    @Requires({!System.getenv("CI")})
-    def 'validation task is not hooked into check task when local'() {
-        given:
-        file('gradle/configuration-cache-allowed-tasks') << ''
-        file('gradle.properties').text = 'org.gradle.configuration-cache=true'
-        commitChanges()
-
-        when:
-        def result = runTasks('check', '--dry-run')
-
-        then:
-        !result.output.contains(':validateConfigurationCacheEnabledTasks')
-    }
-
     def 'validateConfigurationCacheEnabledTasks is up-to-date on second run for success'() {
         given:
         file('gradle/configuration-cache-allowed-tasks') << '''

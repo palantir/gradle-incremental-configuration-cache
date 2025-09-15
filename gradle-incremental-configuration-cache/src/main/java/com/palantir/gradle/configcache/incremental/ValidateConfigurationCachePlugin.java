@@ -44,13 +44,13 @@ public abstract class ValidateConfigurationCachePlugin implements Plugin<Project
                 .register(
                         "validateConfigurationCacheEnabledTasks", ValidateConfigurationCacheEnabledTask.class, task -> {
                             task.getTasksToRunFile().set(targetTasksPath.toFile());
+                            task.onlyIf("Running on CircleCI or explicitly enabled", _t -> getEnvironmentVariables()
+                                    .envVarOrFromTestingProperty("CIRCLECI")
+                                    .isPresent());
                         });
 
-        if (getEnvironmentVariables().envVarOrFromTestingProperty("CIRCLECI").isPresent()) {
-            // We only want to add the ValidateConfigurationCacheEnabledTask to check when running on CI
-            project.getPluginManager().apply(LifecycleBasePlugin.class);
-            project.getTasks().named("check").configure(task -> task.dependsOn(validationTask));
-        }
+        project.getPluginManager().apply(LifecycleBasePlugin.class);
+        project.getTasks().named("check").configure(task -> task.dependsOn(validationTask));
 
         if (project.hasProperty("prevent-dangerous-task-operations")) {
             // This allows for fast validation of configuration cache compatibility across the project without
