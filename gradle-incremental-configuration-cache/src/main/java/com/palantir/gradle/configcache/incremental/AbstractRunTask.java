@@ -95,7 +95,6 @@ public abstract class AbstractRunTask extends DefaultTask {
     }
 
     private void cloneRepository(File sourceDir, File targetDir) {
-        // Use git's local clone with automatic checkout of current state
         getExecOperations().exec(execSpec -> {
             execSpec.setWorkingDir(targetDir.getParentFile());
             execSpec.commandLine(
