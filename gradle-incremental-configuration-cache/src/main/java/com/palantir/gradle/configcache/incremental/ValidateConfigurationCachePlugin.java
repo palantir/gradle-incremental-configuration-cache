@@ -46,14 +46,11 @@ public abstract class ValidateConfigurationCachePlugin implements Plugin<Project
                         ValidateConfigurationCacheEnabledTask.class,
                         task -> {
                             task.getTasksToRunFile().set(targetTasksPath.toFile());
-                            task.onlyIf(
-                                    "Running on CircleCI node 0 only",
-                                    _t -> getEnvironmentVariables()
-                                                    .envVarOrFromTestingProperty("CIRCLECI")
-                                                    .isPresent()
-                                            && getEnvironmentVariables()
-                                                    .isCircleNode0OrLocal()
-                                                    .get());
+                            task.onlyIf("Running on CircleCI node 0 only", _t -> getEnvironmentVariables()
+                                    .envVarOrFromTestingProperty("CIRCLE_NODE_INDEX")
+                                    .map(index -> index.equals("0"))
+                                    .orElse(false)
+                                    .get());
                         });
 
         project.getPluginManager().apply(LifecycleBasePlugin.class);
