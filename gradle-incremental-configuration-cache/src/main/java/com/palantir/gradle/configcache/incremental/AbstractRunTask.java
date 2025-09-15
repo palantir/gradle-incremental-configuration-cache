@@ -98,11 +98,30 @@ public abstract class AbstractRunTask extends DefaultTask {
         getExecOperations().exec(execSpec -> {
             execSpec.setWorkingDir(targetDir.getParentFile());
             execSpec.commandLine(
-                    "git", "clone", "--quiet", "--shared", sourceDir.getAbsolutePath(), targetDir.getName());
+                    "git",
+                    "clone",
+                    "--no-checkout",
+                    "--quiet",
+                    "--shared",
+                    sourceDir.getAbsolutePath(),
+                    targetDir.getName());
             execSpec.setIgnoreExitValue(false);
         });
 
-        getLogger().info("Successfully cloned repository to: {}", targetDir);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        getExecOperations().exec(execSpec -> {
+            execSpec.setWorkingDir(sourceDir);
+            execSpec.commandLine("git", "rev-parse", "HEAD");
+            execSpec.setStandardOutput(outputStream);
+            execSpec.setIgnoreExitValue(false);
+        });
+        String currentCommit = outputStream.toString().trim();
+
+        getExecOperations().exec(execSpec -> {
+            execSpec.setWorkingDir(targetDir);
+            execSpec.commandLine("git", "checkout", currentCommit);
+            execSpec.setIgnoreExitValue(false);
+        });
     }
 
     private RunResult runTasksInDirectory(File projectDir, Set<String> tasksToDryRun, List<String> extraArgs)
