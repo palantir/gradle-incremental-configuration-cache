@@ -23,9 +23,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
@@ -119,7 +117,6 @@ public abstract class AbstractRunTask extends DefaultTask {
                     .newBuild()
                     .withArguments(buildArguments(extraArgs))
                     .forTasks(tasksToDryRun.toArray(new String[0]))
-                    .setEnvironmentVariables(cleanEnvVars())
                     .setStandardOutput(outputStream)
                     .setStandardError(outputStream)
                     .run();
@@ -148,15 +145,5 @@ public abstract class AbstractRunTask extends DefaultTask {
                                         "--init-script=" + getInitScript().get())
                                 : ImmutableList.of())
                 .build();
-    }
-
-    private Map<String, String> cleanEnvVars() {
-        Map<String, String> envVars = new HashMap<>();
-        System.getenv().forEach((key, _value) -> {
-            if (key.startsWith("CIRCLE")) {
-                envVars.put(key, null);
-            }
-        });
-        return envVars;
     }
 }
