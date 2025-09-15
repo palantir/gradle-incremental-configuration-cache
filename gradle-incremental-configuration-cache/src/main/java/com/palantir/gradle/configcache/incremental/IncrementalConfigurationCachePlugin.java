@@ -88,6 +88,8 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
             configureTaskCompatibility(project, lockListTasks);
         }
 
+        // Currently we are only planning on validating test and classes so don't need to worry about the local and CI
+        // environments mismatching however in the future we may need to improve this area
         TaskProvider<CheckConfigurationCacheLockTask> checkLock = project.getTasks()
                 .register("checkConfigurationCacheLock", CheckConfigurationCacheLockTask.class, task -> {
                     task.getTasksToRunFile().set(targetTasksPath.toFile());
