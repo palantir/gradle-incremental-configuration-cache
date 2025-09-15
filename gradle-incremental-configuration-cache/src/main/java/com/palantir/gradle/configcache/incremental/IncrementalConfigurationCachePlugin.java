@@ -26,7 +26,6 @@ import javax.inject.Inject;
 import org.apache.commons.io.FileUtils;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
-import org.gradle.api.Task;
 import org.gradle.api.file.ProjectLayout;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.TaskProvider;
@@ -84,7 +83,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                 });
 
         project.getPluginManager().apply(LifecycleBasePlugin.class);
-        project.getTasks().named("check").configure(Task::dependsOn(checkLock));
+        project.getTasks().named("check").configure(task -> task.dependsOn(checkLock));
 
         project.getPluginManager().apply(ValidateConfigurationCachePlugin.class);
 
