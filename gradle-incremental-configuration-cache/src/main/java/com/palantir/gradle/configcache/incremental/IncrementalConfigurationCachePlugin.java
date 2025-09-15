@@ -98,15 +98,20 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
                 .register(
                         "validateConfigurationCacheEnabledTasks", ValidateConfigurationCacheEnabledTask.class, task -> {
                             task.getTasksToRunFile().set(targetTasksPath.toFile());
-                            task.onlyIf("Running on CircleCI node 0 only", _t -> getEnvironmentVariables()
-                                    .envVarOrFromTestingProperty("CIRCLE_NODE_INDEX")
-                                    .map(index -> index.equals("0"))
-                                    .orElse(false)
-                                    .get());
                         });
 
         project.getPluginManager().apply(LifecycleBasePlugin.class);
-        project.getTasks().named("check").configure(task -> task.dependsOn(checkLock, validationTask));
+        project.getTasks().named("check").configure(task -> {
+            task.dependsOn(checkLock);
+
+            if (getEnvironmentVariables()
+                    .envVarOrFromTestingProperty("CIRCLE_NODE_INDEX")
+                    .map(index -> index.equals("0"))
+                    .orElse(false)
+                    .get()) {
+                task.dependsOn(validationTask);
+            }
+        });
 
         ensureReportsDirIsSymlinkedToCircleArtifacts();
     }
