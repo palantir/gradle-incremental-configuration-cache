@@ -45,8 +45,7 @@ public abstract class ValidateConfigurationCacheEnabledTask extends AbstractRunT
         RunResult run = run(List.of(
                 "--configuration-cache",
                 "--continue",
-                "-Pconfiguration-cache-compatible-for-all-tasks",
-                "-Pprevent-dangerous-task-operations",
+                "-P" + IncrementalConfigurationCachePlugin.VALIDATION_MODE_PROPERTY,
                 "-PerrorProneDisable",
                 // prevent recursion
                 "-x",

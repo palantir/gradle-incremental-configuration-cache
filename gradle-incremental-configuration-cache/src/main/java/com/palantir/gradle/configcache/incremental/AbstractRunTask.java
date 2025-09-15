@@ -115,7 +115,7 @@ public abstract class AbstractRunTask extends DefaultTask {
             execSpec.setStandardOutput(outputStream);
             execSpec.setIgnoreExitValue(false);
         });
-        String currentCommit = outputStream.toString().trim();
+        String currentCommit = outputStream.toString(StandardCharsets.UTF_8).trim();
 
         getExecOperations().exec(execSpec -> {
             execSpec.setWorkingDir(targetDir);
