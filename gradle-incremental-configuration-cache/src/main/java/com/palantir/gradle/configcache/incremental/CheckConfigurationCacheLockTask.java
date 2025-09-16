@@ -16,8 +16,8 @@
 
 package com.palantir.gradle.configcache.incremental;
 
-import com.palantir.gradle.configcache.incremental.DryRunResult.Failure;
-import com.palantir.gradle.configcache.incremental.DryRunResult.Success;
+import com.palantir.gradle.configcache.incremental.RunResult.Failure;
+import com.palantir.gradle.configcache.incremental.RunResult.Success;
 import com.palantir.gradle.failurereports.exceptions.ExceptionWithSuggestion;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,6 +25,9 @@ import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
@@ -34,7 +37,8 @@ import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.options.Option;
 
-public abstract class CheckConfigurationCacheLockTask extends AbstractDryRunTask {
+public abstract class CheckConfigurationCacheLockTask extends AbstractRunTask {
+    private static final Pattern DRY_RUN_TASK_PATTERN = Pattern.compile("(:[\\w:-]+)\\s+SKIPPED");
 
     @InputFiles
     @PathSensitive(PathSensitivity.RELATIVE)
@@ -52,10 +56,10 @@ public abstract class CheckConfigurationCacheLockTask extends AbstractDryRunTask
 
     @TaskAction
     public final void check() throws IOException {
-        DryRunResult result = dryRun(List.of("--quiet", "--no-configuration-cache"));
+        RunResult result = run(List.of("--dry-run", "--quiet", "--no-configuration-cache"));
 
         if (result instanceof Failure failure) {
-            throw new RuntimeException("Failed to dry run configuration-cacheable tasks: " + failure.errorOutput());
+            throw new RuntimeException("Failed to dry run configuration-cacheable tasks: " + failure.output());
         }
 
         Path lockPath = getLockFile().getSingleFile().toPath();
@@ -69,18 +73,18 @@ public abstract class CheckConfigurationCacheLockTask extends AbstractDryRunTask
                     "./gradlew :checkConfigurationCacheLock --fix");
         }
 
-        Set<String> dryRanTasks = ((Success) result).tasks();
+        Set<String> dryRanTasks = parseDryRunResult(((Success) result).output());
 
         if (getShouldFix().get()) {
             TaskListFile.write(lockPath, dryRanTasks);
-            getLogger().lifecycle("Lock file updated with {} tasks", dryRanTasks.size());
+            getLogger().info("Lock file updated with {} tasks", dryRanTasks.size());
             return;
         }
 
         Set<String> lockFileTasks = new TaskListFile(lockPath).loadTasks();
 
         if (lockFileTasks.equals(dryRanTasks)) {
-            getLogger().lifecycle("Lock file is up to date with {} tasks", lockFileTasks.size());
+            getLogger().info("Lock file is up to date with {} tasks", lockFileTasks.size());
             return;
         }
 
@@ -130,5 +134,13 @@ public abstract class CheckConfigurationCacheLockTask extends AbstractDryRunTask
         diffMessage.append("Total tasks that would execute: ").append(dryRanTasks.size());
 
         return diffMessage.toString();
+    }
+
+    private Set<String> parseDryRunResult(String output) {
+        return DRY_RUN_TASK_PATTERN
+                .matcher(output)
+                .results()
+                .map(match -> match.group(1))
+                .collect(Collectors.toCollection(TreeSet::new));
     }
 }

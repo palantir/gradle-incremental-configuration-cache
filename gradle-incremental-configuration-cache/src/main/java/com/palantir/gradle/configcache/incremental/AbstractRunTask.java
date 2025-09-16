@@ -18,14 +18,13 @@ package com.palantir.gradle.configcache.incremental;
 
 import com.google.common.collect.ImmutableList;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import javax.inject.Inject;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.ProjectLayout;
@@ -36,44 +35,98 @@ import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
+import org.gradle.process.ExecOperations;
 import org.gradle.tooling.GradleConnector;
 import org.gradle.tooling.ProjectConnection;
 
-public abstract class AbstractDryRunTask extends DefaultTask {
-    private static final Pattern DRY_RUN_TASK_PATTERN = Pattern.compile("(:[\\w:-]+)\\s+SKIPPED");
+public abstract class AbstractRunTask extends DefaultTask {
 
     @InputFiles
     @PathSensitive(PathSensitivity.RELATIVE)
-    public abstract RegularFileProperty getDryRunTasksFile();
+    public abstract RegularFileProperty getTasksToRunFile();
 
     @Input
     @org.gradle.api.tasks.Optional
     public abstract Property<String> getInitScript();
 
+    @Input
+    public abstract Property<Boolean> getUseClonedDirectory();
+
     @Inject
     protected abstract ProjectLayout getProjectLayout();
+
+    @Inject
+    protected abstract ExecOperations getExecOperations();
 
     @OutputFile
     public abstract RegularFileProperty getMarkerOutputFile();
 
-    public AbstractDryRunTask() {
+    public AbstractRunTask() {
         getMarkerOutputFile()
                 .set(getTemporaryDir().toPath().resolve(getName() + ".marker").toFile());
+        getUseClonedDirectory().convention(false);
     }
 
-    protected final DryRunResult dryRun(List<String> extraArgs) throws IOException {
+    protected final RunResult run(List<String> extraArgs) throws IOException {
         Set<String> tasksToDryRun =
-                new TaskListFile(getDryRunTasksFile().getAsFile().get().toPath()).loadTasks();
+                new TaskListFile(getTasksToRunFile().getAsFile().get().toPath()).loadTasks();
 
         if (tasksToDryRun.isEmpty()) {
-            getLogger().info("No tasks to dry-run");
-            return DryRunResult.success(new TreeSet<>());
+            getLogger().info("No tasks to run");
+            return RunResult.success("");
         }
 
-        getLogger().info("Dry-running {} tasks", tasksToDryRun.size());
+        getLogger().info("Running {} tasks", tasksToDryRun.size());
 
-        GradleConnector connector = GradleConnector.newConnector()
-                .forProjectDirectory(getProjectLayout().getProjectDirectory().getAsFile());
+        return runTasksInDirectory(determineProjectDirectory(), tasksToDryRun, extraArgs);
+    }
+
+    private File determineProjectDirectory() throws IOException {
+        if (!getUseClonedDirectory().get()) {
+            return getProjectLayout().getProjectDirectory().getAsFile();
+        }
+
+        Path cloneDir = Files.createTempDirectory("gradle-config-cache-validation-");
+        getLogger().info("Cloning repository to temporary directory: {}", cloneDir);
+
+        cloneRepository(getProjectLayout().getProjectDirectory().getAsFile(), cloneDir.toFile());
+
+        return cloneDir.toFile();
+    }
+
+    private void cloneRepository(File sourceDir, File targetDir) {
+        getExecOperations().exec(execSpec -> {
+            execSpec.setWorkingDir(targetDir.getParentFile());
+            execSpec.commandLine(
+                    "git",
+                    "clone",
+                    "--no-checkout",
+                    "--quiet",
+                    "--shared",
+                    sourceDir.getAbsolutePath(),
+                    targetDir.getName());
+            execSpec.setIgnoreExitValue(false);
+        });
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        getExecOperations().exec(execSpec -> {
+            execSpec.setWorkingDir(sourceDir);
+            execSpec.commandLine("git", "rev-parse", "HEAD");
+            execSpec.setStandardOutput(outputStream);
+            execSpec.setIgnoreExitValue(false);
+        });
+        String currentCommit = outputStream.toString(StandardCharsets.UTF_8).trim();
+
+        getExecOperations().exec(execSpec -> {
+            execSpec.setWorkingDir(targetDir);
+            execSpec.commandLine("git", "checkout", currentCommit);
+            execSpec.setIgnoreExitValue(false);
+        });
+    }
+
+    private RunResult runTasksInDirectory(File projectDir, Set<String> tasksToDryRun, List<String> extraArgs)
+            throws IOException {
+        GradleConnector connector = GradleConnector.newConnector().forProjectDirectory(projectDir);
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream(16 * 1024);
 
@@ -86,24 +139,23 @@ public abstract class AbstractDryRunTask extends DefaultTask {
                     .setStandardError(outputStream)
                     .run();
 
-            getLogger().info("All {} tasks dry-ran successfully", tasksToDryRun.size());
+            getLogger().info("All {} tasks ran successfully", tasksToDryRun.size());
 
         } catch (Exception e) {
-            getLogger().info("Failed to run Dry-run tasks", e);
+            getLogger().info("Failed to run tasks", e);
             String error = outputStream.toString(StandardCharsets.UTF_8);
-            return DryRunResult.failure(error);
+            return RunResult.failure(error);
         }
 
         String output = outputStream.toString(StandardCharsets.UTF_8);
         Files.writeString(getMarkerOutputFile().get().getAsFile().toPath(), output);
-        Set<String> dryRunTasks = parseDryRunResult(output);
-        return DryRunResult.success(dryRunTasks);
+        return RunResult.success(output);
     }
 
     private ImmutableList<String> buildArguments(List<String> arguments) {
         return ImmutableList.<String>builder()
-                .add("--dry-run")
                 .add("--console=plain")
+                .add("--rerun-tasks")
                 .addAll(arguments)
                 .addAll(
                         getInitScript().isPresent() && !getInitScript().get().isBlank()
@@ -111,13 +163,5 @@ public abstract class AbstractDryRunTask extends DefaultTask {
                                         "--init-script=" + getInitScript().get())
                                 : ImmutableList.of())
                 .build();
-    }
-
-    private Set<String> parseDryRunResult(String output) {
-        return DRY_RUN_TASK_PATTERN
-                .matcher(output)
-                .results()
-                .map(match -> match.group(1))
-                .collect(Collectors.toCollection(TreeSet::new));
     }
 }

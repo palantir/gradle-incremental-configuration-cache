@@ -18,11 +18,9 @@ package com.palantir.gradle.configcache.incremental;
 
 import com.google.common.base.Splitter;
 import com.google.common.base.Throwables;
-import com.palantir.gradle.configcache.incremental.DryRunResult.Failure;
-import com.palantir.gradle.configcache.incremental.DryRunResult.Success;
+import com.palantir.gradle.configcache.incremental.RunResult.Failure;
 import com.palantir.gradle.utils.circleciartifacts.ArtifactLocation;
 import com.palantir.gradle.utils.circleciartifacts.CircleCiArtifacts;
-import com.palantir.gradle.utils.environmentvariables.EnvironmentVariables;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,42 +29,34 @@ import java.util.Optional;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.TaskAction;
 
-public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRunTask {
+public abstract class ValidateConfigurationCacheEnabledTask extends AbstractRunTask {
 
-    @Nested
-    protected abstract EnvironmentVariables getEnvironmentVariables();
+    static final String VALIDATION_TASK_NAME = "validateConfigurationCacheEnabledTasks";
 
     @Nested
     protected abstract CircleCiArtifacts getCircleCiArtifacts();
 
-    public DryRunConfigurationCacheEnabledTask() {}
+    public ValidateConfigurationCacheEnabledTask() {
+        getUseClonedDirectory().set(true);
+    }
 
     @TaskAction
     public final void check() throws IOException {
-        DryRunResult result =
-                dryRun(List.of("--configuration-cache", "-Pconfiguration-cache-compatible-for-all-tasks"));
+        RunResult run = run(List.of(
+                "--configuration-cache",
+                "--continue",
+                "-P" + IncrementalConfigurationCachePlugin.VALIDATION_MODE_PROPERTY,
+                "-PerrorProneDisable",
+                // prevent recursion
+                "-x",
+                VALIDATION_TASK_NAME));
 
-        if (result instanceof Success) {
-            return;
+        if (run instanceof Failure failure) {
+            throw new RuntimeException(errorMessage(failure.output()));
         }
-
-        String message = errorMessage(((Failure) result).errorOutput());
-        throw new RuntimeException(message);
     }
 
     private String errorMessage(String output) {
-        boolean isCircleCI = getEnvironmentVariables()
-                .envVarOrFromTestingProperty("CIRCLECI")
-                .isPresent();
-
-        if (!isCircleCI) {
-            return buildDetailedErrorMessage(output, Optional.empty());
-        }
-
-        return circleCiErrorMessage(output);
-    }
-
-    private String circleCiErrorMessage(String output) {
         try {
             String artifactPath = "configuration-cache-validation-report/validation-report.txt";
             ArtifactLocation artifactLocation =
@@ -77,41 +67,35 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
             Files.createDirectories(artifactLocationPath.getParent());
             Files.writeString(artifactLocationPath, output);
 
-            return buildDetailedErrorMessage(output, Optional.of(artifactLocation.circleLink()));
+            return buildDetailedErrorMessage(output, artifactLocation.circleLink());
         } catch (IOException e) {
             // Fall back to including output directly if we can't create the artifact
             return String.format(
                     """
                     %s
 
+                    %s
+
                     (Failed to save CircleCI artifact: %s)
                     """,
-                    buildDetailedErrorMessage(output, Optional.empty()), Throwables.getStackTraceAsString(e));
+                    buildDetailedErrorMessage(
+                            output, "Failed to save validation-report.txt to CircleCi see error below"),
+                    output,
+                    Throwables.getStackTraceAsString(e));
         }
     }
 
     @SuppressWarnings("checkstyle:LineLength")
-    private String buildDetailedErrorMessage(String outputContent, Optional<String> validationReportUrl) {
-        Optional<String> configCacheReportPath = extractConfigCacheReportPath(outputContent);
-
-        // Get the proper artifact URL for the configuration cache report
-        Optional<String> configCacheReportUrl = Optional.empty();
-        if (configCacheReportPath.isPresent() && validationReportUrl.isPresent()) {
-            configCacheReportUrl = configCacheReportArtifactUrl(configCacheReportPath.get());
-        }
-
-        // Build the reports section based on what's available
-        String reportsSection = reportsSection(validationReportUrl, configCacheReportUrl, configCacheReportPath);
-
-        // Build the main message (shared between CI and local)
-        String mainMessage = String.format(
+    private String buildDetailedErrorMessage(String outputContent, String validationReportUrl) {
+        return String.format(
                 """
             ❌ CONFIGURATION CACHE ALLOW LIST VALIDATION FAILED
 
             WHAT HAPPENED:
               Some task / tasks in the allow list failed to run with configuration cache enabled.
 
-            %s
+              📋 Full output: %s
+              📊 Config cache report: %s
 
             WHY THIS MATTERS:
               This validation task runs all the tasks marked as configuration cacheable in the allow list,
@@ -121,7 +105,7 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
 
             HOW TO FIX (only if you have introduced a task, or upgraded a plugin):
 
-              1. Review the %s for specific issues
+              1. Review the Gradle configuration cache report for specific issues
 
               2. Common fixes for configuration cache problems:
                   • Task.project at execution → Inject services (ProjectLayout, FileSystemOperations)
@@ -132,39 +116,10 @@ public abstract class DryRunConfigurationCacheEnabledTask extends AbstractDryRun
                   📚 Gradle Guide: https://github.com/palantir/gradle-guide/blob/develop/guide/adopting-the-configuration-cache.md
                   📚 Gradle docs: https://docs.gradle.org/current/userguide/configuration_cache.html
             """,
-                reportsSection,
-                configCacheReportUrl.isPresent() || configCacheReportPath.isPresent()
-                        ? "Gradle configuration cache report"
-                        : "output above");
-
-        // Add validation output for local development only
-        if (validationReportUrl.isEmpty() && !outputContent.isEmpty()) {
-            mainMessage +=
-                    """
-
-                VALIDATION OUTPUT: to see full output above re-run with --info
-                """;
-            // the outputContent can be very large and annoying to scroll past so only show when running with info
-            getLogger().info(outputContent);
-        }
-
-        return mainMessage;
-    }
-
-    private static String reportsSection(
-            Optional<String> validationReportUrl,
-            Optional<String> configCacheReportUrl,
-            Optional<String> configCacheReportPath) {
-
-        Optional<String> configCacheLocation =
-                configCacheReportUrl.or(() -> configCacheReportPath.map(path -> "file://" + path));
-
-        Optional<String> configCacheReport = configCacheLocation.map(location ->
-                String.format("%s  📊 Config cache report: %s", validationReportUrl.isPresent() ? "\n" : "", location));
-
-        return validationReportUrl
-                .map(url -> String.format("  📋 Full output: %s%s", url, configCacheReport.orElse("")))
-                .orElseGet(() -> configCacheReport.orElse("  To see full output above re-run with --info"));
+                validationReportUrl,
+                extractConfigCacheReportPath(outputContent)
+                        .flatMap(this::configCacheReportArtifactUrl)
+                        .orElse("Failed to extract report location"));
     }
 
     private Optional<String> extractConfigCacheReportPath(String output) {

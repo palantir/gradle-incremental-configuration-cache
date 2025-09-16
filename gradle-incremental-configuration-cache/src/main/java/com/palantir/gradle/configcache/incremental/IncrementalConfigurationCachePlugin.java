@@ -21,14 +21,17 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.Set;
 import javax.inject.Inject;
 import org.apache.commons.io.FileUtils;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.file.ProjectLayout;
+import org.gradle.api.publish.maven.tasks.PublishToMavenRepository;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.TaskProvider;
+import org.gradle.api.tasks.testing.Test;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.util.GradleVersion;
 import org.slf4j.Logger;
@@ -37,12 +40,13 @@ import org.slf4j.LoggerFactory;
 public abstract class IncrementalConfigurationCachePlugin implements Plugin<Project> {
     private static final Logger log = LoggerFactory.getLogger(IncrementalConfigurationCachePlugin.class);
 
-    private static final Path TARGET_TASKS_FILE = Path.of("gradle/configuration-cache-allowed-tasks");
+    static final Path TARGET_TASKS_FILE = Path.of("gradle/configuration-cache-allowed-tasks");
     private static final Path LOCK_FILE = Path.of("gradle/configuration-cache-allowed-tasks.lock");
     private static final GradleVersion MIN_GRADLE_VERSION = GradleVersion.version("8.12.0");
 
     static final String CONFIGURATION_CACHE_REPORTS_DIR = "reports/configuration-cache";
     static final String CIRCLE_CONFIGURATION_CACHE_REPORTS_DIR = "configuration-cache-reports";
+    static final String VALIDATION_MODE_PROPERTY = "configuration-cache-validation-mode";
 
     @Inject
     protected abstract ProjectLayout getProjectLayout();
@@ -52,6 +56,7 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
 
     @Override
     public final void apply(Project project) {
+
         if (!project.getRootProject().equals(project)) {
             throw new RuntimeException("Must be applied only to root project");
         }
@@ -73,21 +78,42 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
         TaskListFile lockList = new TaskListFile(lockFilePath);
         Set<String> lockListTasks = lockList.loadTasks();
 
-        configureTaskCompatibility(project, lockListTasks);
+        if (project.hasProperty(VALIDATION_MODE_PROPERTY)) {
+            // If we are in validation mode we need to disable dangerous tasks to prevent them from running. We don't
+            // want to configure the tasks through as we want all task to run with configuration cache.
+            disableDangerousTasksForValidation(project);
+        } else {
+            // When we are not in validation mode we want to disable tasks not in the lock file from running with
+            // configuration cache.
+            configureTaskCompatibility(project, lockListTasks);
+        }
 
+        // Currently we are only planning on validating test and classes so don't need to worry about the local and CI
+        // environments mismatching however in the future we may need to improve this area
         TaskProvider<CheckConfigurationCacheLockTask> checkLock = project.getTasks()
                 .register("checkConfigurationCacheLock", CheckConfigurationCacheLockTask.class, task -> {
-                    task.getDryRunTasksFile().set(targetTasksPath.toFile());
+                    task.getTasksToRunFile().set(targetTasksPath.toFile());
                     task.getLockFile().from(lockFilePath.toFile());
                 });
 
-        TaskProvider<DryRunConfigurationCacheEnabledTask> dryRunTask = project.getTasks()
-                .register("dryRunConfigurationCacheEnabledTasks", DryRunConfigurationCacheEnabledTask.class, task -> {
-                    task.getDryRunTasksFile().set(targetTasksPath.toFile());
-                });
+        TaskProvider<ValidateConfigurationCacheEnabledTask> validationTask = project.getTasks()
+                .register(
+                        "validateConfigurationCacheEnabledTasks", ValidateConfigurationCacheEnabledTask.class, task -> {
+                            task.getTasksToRunFile().set(targetTasksPath.toFile());
+                        });
 
         project.getPluginManager().apply(LifecycleBasePlugin.class);
-        project.getTasks().named("check").configure(task -> task.dependsOn(checkLock, dryRunTask));
+        project.getTasks().named("check").configure(task -> {
+            task.dependsOn(checkLock);
+
+            if (getEnvironmentVariables()
+                    .envVarOrFromTestingProperty("CIRCLE_NODE_INDEX")
+                    .map(index -> index.equals("0"))
+                    .orElse(false)
+                    .get()) {
+                task.dependsOn(validationTask);
+            }
+        });
 
         ensureReportsDirIsSymlinkedToCircleArtifacts();
     }
@@ -154,19 +180,31 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
     }
 
     private void configureTaskCompatibility(Project project, Set<String> lockListTasks) {
-        // We need a way to always run with configuration cache for every task. This is needed as in some cases the
-        // allow list and its lock file will be out of sync. In these cases we still want the
-        // dryRunConfigurationCacheEnabledTasks task to all its dry-run tasks with configuration cache, so that all
-        // issues (lock file out of date and tasks that are not CC friendly) are surfaced at once.
-        if (project.hasProperty("configuration-cache-compatible-for-all-tasks")) {
-            return;
-        }
-
         project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
             if (!lockListTasks.contains(task.getPath())) {
                 task.notCompatibleWithConfigurationCache(
                         "Configuration cache is not enabled for this task, as it was not included in %s"
                                 .formatted(TARGET_TASKS_FILE));
+            }
+        }));
+    }
+
+    private void disableDangerousTasksForValidation(Project project) {
+        project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
+            // Dry run tests instead of actually running them
+            if (task instanceof Test testTask) {
+                testTask.getDryRun().set(true);
+            }
+
+            // Disable publishing tasks
+            if (task instanceof PublishToMavenRepository) {
+                task.setEnabled(false);
+            }
+
+            // Disable docker push tasks
+            String taskNameLower = task.getName().toLowerCase(Locale.ROOT);
+            if (taskNameLower.contains("docker") && taskNameLower.contains("push")) {
+                task.setEnabled(false);
             }
         }));
     }
