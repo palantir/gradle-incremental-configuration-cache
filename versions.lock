@@ -34,7 +34,7 @@ commons-io:commons-io:2.20.0 (1 constraints: 3605333b)
 
 org.codehaus.woodstox:stax2-api:4.2.2 (2 constraints: 6a278bd2)
 
-org.immutables:value:2.11.5 (1 constraints: 3b05373b)
+org.immutables:value:2.11.6 (1 constraints: 3c05383b)
 
 org.jspecify:jspecify:1.0.0 (8 constraints: c9803ac0)
 
