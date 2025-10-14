@@ -89,33 +89,33 @@ public abstract class ValidateConfigurationCacheEnabledTask extends AbstractRunT
     private String buildDetailedErrorMessage(String outputContent, String validationReportUrl) {
         return String.format(
                 """
-            ❌ CONFIGURATION CACHE ALLOW LIST VALIDATION FAILED
+                ❌ CONFIGURATION CACHE ALLOW LIST VALIDATION FAILED
 
-            WHAT HAPPENED:
-              Some task / tasks in the allow list failed to run with configuration cache enabled.
+                WHAT HAPPENED:
+                  Some task / tasks in the allow list failed to run with configuration cache enabled.
 
-              📋 Full output: %s
-              📊 Config cache report: %s
+                  📋 Full output: %s
+                  📊 Config cache report: %s
 
-            WHY THIS MATTERS:
-              This validation task runs all the tasks marked as configuration cacheable in the allow list,
-              to ensure the allow list contains only configuration cache compatible tasks.
-              Regular CI builds may mask configuration cache issues when configuration cache incompatible tasks
-              disable the configuration cache.
+                WHY THIS MATTERS:
+                  This validation task runs all the tasks marked as configuration cacheable in the allow list,
+                  to ensure the allow list contains only configuration cache compatible tasks.
+                  Regular CI builds may mask configuration cache issues when configuration cache incompatible tasks
+                  disable the configuration cache.
 
-            HOW TO FIX (only if you have introduced a task, or upgraded a plugin):
+                HOW TO FIX (only if you have introduced a task, or upgraded a plugin):
 
-              1. Review the Gradle configuration cache report for specific issues
+                  1. Review the Gradle configuration cache report for specific issues
 
-              2. Common fixes for configuration cache problems:
-                  • Task.project at execution → Inject services (ProjectLayout, FileSystemOperations)
-                  • External processes → Use ProviderFactory.exec() or GradleExec (https://github.com/palantir/gradle-utils?tab=readme-ov-file#gradleexec)
-                  • Cannot serialize Gradle model types → Don't pass in full object use Property<T> for specific values or inject services
+                  2. Common fixes for configuration cache problems:
+                      • Task.project at execution → Inject services (ProjectLayout, FileSystemOperations)
+                      • External processes → Use ProviderFactory.exec() or GradleExec (https://github.com/palantir/gradle-utils?tab=readme-ov-file#gradleexec)
+                      • Cannot serialize Gradle model types → Don't pass in full object use Property<T> for specific values or inject services
 
-              3. If you upgraded a plugin, verify it supports configuration cache:
-                  📚 Gradle Guide: https://github.com/palantir/gradle-guide/blob/develop/guide/adopting-the-configuration-cache.md
-                  📚 Gradle docs: https://docs.gradle.org/current/userguide/configuration_cache.html
-            """,
+                  3. If you upgraded a plugin, verify it supports configuration cache:
+                      📚 Gradle Guide: https://github.com/palantir/gradle-guide/blob/develop/guide/adopting-the-configuration-cache.md
+                      📚 Gradle docs: https://docs.gradle.org/current/userguide/configuration_cache.html
+                """,
                 validationReportUrl,
                 extractConfigCacheReportPath(outputContent)
                         .flatMap(this::configCacheReportArtifactUrl)
