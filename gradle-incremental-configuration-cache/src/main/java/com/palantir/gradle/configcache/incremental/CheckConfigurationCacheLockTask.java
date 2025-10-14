@@ -64,13 +64,10 @@ public abstract class CheckConfigurationCacheLockTask extends AbstractRunTask {
 
         Path lockPath = getLockFile().getSingleFile().toPath();
         if (Files.notExists(lockPath) && !getShouldFix().get()) {
-            throw new ExceptionWithSuggestion(
-                    """
+            throw new ExceptionWithSuggestion("""
                 Lock file does not exist at %s.
                 Run `./gradlew :checkConfigurationCacheLock --fix` to create the lock file.
-                """
-                            .formatted(lockPath),
-                    "./gradlew :checkConfigurationCacheLock --fix");
+                """.formatted(lockPath), "./gradlew :checkConfigurationCacheLock --fix");
         }
 
         Set<String> dryRanTasks = parseDryRunResult(((Success) result).output());
@@ -105,11 +102,10 @@ public abstract class CheckConfigurationCacheLockTask extends AbstractRunTask {
             Set<String> inDryRunNotInLock) {
 
         StringBuilder diffMessage = new StringBuilder();
-        diffMessage.append(
-                """
-                Lock file does not match the tasks that would run.
-                Run `./gradlew :checkConfigurationCacheLock --fix` to update the lock file.
-                """);
+        diffMessage.append("""
+            Lock file does not match the tasks that would run.
+            Run `./gradlew :checkConfigurationCacheLock --fix` to update the lock file.
+            """);
 
         if (!inLockNotInDryRun.isEmpty()) {
             diffMessage.append("Tasks in lock file but NOT executed (may have been removed or renamed):\n");
