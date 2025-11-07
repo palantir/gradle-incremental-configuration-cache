@@ -30,7 +30,7 @@ com.palantir.gradle.utils:environment-variables:0.20.0 (2 constraints: 27185988)
 
 com.palantir.gradle.utils:providers:0.20.0 (1 constraints: f4126134)
 
-commons-io:commons-io:2.20.0 (2 constraints: 101f108c)
+commons-io:commons-io:2.21.0 (2 constraints: 111f5a8c)
 
 org.codehaus.woodstox:stax2-api:4.2.2 (2 constraints: 6a278bd2)
 
