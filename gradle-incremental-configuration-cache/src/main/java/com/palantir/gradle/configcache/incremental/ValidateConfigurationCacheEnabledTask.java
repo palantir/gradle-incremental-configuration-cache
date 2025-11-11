@@ -21,6 +21,7 @@ import com.google.common.base.Throwables;
 import com.palantir.gradle.configcache.incremental.RunResult.Failure;
 import com.palantir.gradle.utils.circleciartifacts.ArtifactLocation;
 import com.palantir.gradle.utils.circleciartifacts.CircleCiArtifacts;
+import com.palantir.logsafe.Unsafe;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -56,6 +57,7 @@ public abstract class ValidateConfigurationCacheEnabledTask extends AbstractRunT
         }
     }
 
+    @Unsafe
     private String errorMessage(String output) {
         try {
             String artifactPath = "configuration-cache-validation-report/validation-report.txt";
