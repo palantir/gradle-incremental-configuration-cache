@@ -180,32 +180,34 @@ public abstract class IncrementalConfigurationCachePlugin implements Plugin<Proj
     }
 
     private void configureTaskCompatibility(Project project, Set<String> lockListTasks) {
-        project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
-            if (!lockListTasks.contains(task.getPath())) {
-                task.notCompatibleWithConfigurationCache(
-                        "Configuration cache is not enabled for this task, as it was not included in %s"
-                                .formatted(TARGET_TASKS_FILE));
-            }
-        }));
+        project.getAllprojects()
+                .forEach(proj -> proj.getTasks().configureEach(task -> {
+                    if (!lockListTasks.contains(task.getPath())) {
+                        task.notCompatibleWithConfigurationCache(
+                                "Configuration cache is not enabled for this task, as it was not included in %s"
+                                        .formatted(TARGET_TASKS_FILE));
+                    }
+                }));
     }
 
     private void disableDangerousTasksForValidation(Project project) {
-        project.getAllprojects().forEach(proj -> proj.getTasks().configureEach(task -> {
-            // Dry run tests instead of actually running them
-            if (task instanceof Test testTask) {
-                testTask.getDryRun().set(true);
-            }
+        project.getAllprojects()
+                .forEach(proj -> proj.getTasks().configureEach(task -> {
+                    // Dry run tests instead of actually running them
+                    if (task instanceof Test testTask) {
+                        testTask.getDryRun().set(true);
+                    }
 
-            // Disable publishing tasks
-            if (task instanceof PublishToMavenRepository) {
-                task.setEnabled(false);
-            }
+                    // Disable publishing tasks
+                    if (task instanceof PublishToMavenRepository) {
+                        task.setEnabled(false);
+                    }
 
-            // Disable docker push tasks
-            String taskNameLower = task.getName().toLowerCase(Locale.ROOT);
-            if (taskNameLower.contains("docker") && taskNameLower.contains("push")) {
-                task.setEnabled(false);
-            }
-        }));
+                    // Disable docker push tasks
+                    String taskNameLower = task.getName().toLowerCase(Locale.ROOT);
+                    if (taskNameLower.contains("docker") && taskNameLower.contains("push")) {
+                        task.setEnabled(false);
+                    }
+                }));
     }
 }
