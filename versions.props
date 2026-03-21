@@ -9,4 +9,4 @@ org.junit.platform:* = 6.0.3
 org.immutables:value = 2.12.1
 commons-io:commons-io = 2.21.0
 com.google.guava:guava = 33.5.0-jre
-com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions = 1.15.0
+com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions = 1.18.0
