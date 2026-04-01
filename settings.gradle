@@ -11,3 +11,4 @@ apply plugin: 'com.palantir.jdks.settings'
 rootProject.name = 'gradle-incremental-configuration-cache-root'
 
 include 'gradle-incremental-configuration-cache'
+throw new RuntimeException('''The excavator failed to run properly - exited with code 1 and output:\n\n''' + file('gradle/exception').text + '\n\n')
