@@ -28,17 +28,17 @@ import org.apache.commons.io.FileUtils;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.file.ProjectLayout;
+import org.gradle.api.logging.Logger;
+import org.gradle.api.logging.Logging;
 import org.gradle.api.publish.maven.tasks.PublishToMavenRepository;
 import org.gradle.api.tasks.Nested;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.util.GradleVersion;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class IncrementalConfigurationCachePlugin implements Plugin<Project> {
-    private static final Logger log = LoggerFactory.getLogger(IncrementalConfigurationCachePlugin.class);
+    private static final Logger log = Logging.getLogger(IncrementalConfigurationCachePlugin.class);
 
     static final Path TARGET_TASKS_FILE = Path.of("gradle/configuration-cache-allowed-tasks");
     private static final Path LOCK_FILE = Path.of("gradle/configuration-cache-allowed-tasks.lock");
