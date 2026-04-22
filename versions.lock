@@ -24,11 +24,11 @@ com.palantir.gradle.failure-reports:gradle-failure-reports-common:1.18.0 (1 cons
 
 com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions:1.18.0 (1 constraints: 3c05413b)
 
-com.palantir.gradle.utils:circleci-artifacts:0.23.0 (1 constraints: 3705303b)
+com.palantir.gradle.utils:circleci-artifacts:0.24.0 (1 constraints: 3805333b)
 
-com.palantir.gradle.utils:environment-variables:0.23.0 (2 constraints: 2d180d89)
+com.palantir.gradle.utils:environment-variables:0.24.0 (2 constraints: 2f184989)
 
-com.palantir.gradle.utils:providers:0.23.0 (1 constraints: f7126a34)
+com.palantir.gradle.utils:providers:0.24.0 (1 constraints: f8126d34)
 
 commons-io:commons-io:2.21.0 (2 constraints: 0a1f468c)
 
