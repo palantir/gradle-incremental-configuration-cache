@@ -1,7 +1,7 @@
 com.fasterxml.jackson.*:* = 2.21.4
 com.fasterxml.jackson.core:jackson-annotations = 2.21
 com.palantir.gradle.utils:* = 0.24.0
-com.netflix.nebula:nebula-test = 10.6.2
+com.netflix.nebula:nebula-test = 12.1.0
 junit:junit = 4.13.2
 org.junit.jupiter:* = 6.1.1
 org.junit.vintage:* = 6.1.1
@@ -10,3 +10,4 @@ org.immutables:value = 2.12.2
 commons-io:commons-io = 2.22.0
 com.google.guava:guava = 33.6.0-jre
 com.palantir.gradle.failure-reports:gradle-failure-reports-exceptions = 1.18.0
+org.spockframework:* = 2.4-groovy-4.0
