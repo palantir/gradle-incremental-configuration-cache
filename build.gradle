@@ -51,6 +51,7 @@ allprojects {
 }
 
 javaVersions {
+    javaCompiler = 21
     libraryTarget = 17
 }
 
