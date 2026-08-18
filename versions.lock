@@ -10,11 +10,11 @@ com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.22.1 (1 constraints: 3
 
 com.fasterxml.woodstox:woodstox-core:7.2.0 (1 constraints: 3d174b26)
 
-com.google.errorprone:error_prone_annotations:2.47.0 (1 constraints: 4f0a50bf)
+com.google.errorprone:error_prone_annotations:2.50.0 (1 constraints: 490a3fbf)
 
 com.google.guava:failureaccess:1.0.3 (1 constraints: 160ae3b4)
 
-com.google.guava:guava:33.6.0-jre (4 constraints: c456e78b)
+com.google.guava:guava:33.7.0-jre (4 constraints: c556cb8c)
 
 com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava (1 constraints: bd17c918)
 
@@ -36,7 +36,7 @@ org.codehaus.woodstox:stax2-api:4.3.0 (2 constraints: 682760d2)
 
 org.immutables:value:2.12.2 (1 constraints: 3905373b)
 
-org.jspecify:jspecify:1.0.0 (9 constraints: 0b8e4ec8)
+org.jspecify:jspecify:1.0.1 (9 constraints: 0c8ec5c9)
 
 
 
