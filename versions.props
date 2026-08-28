@@ -1,6 +1,6 @@
 com.fasterxml.jackson.*:* = 2.22.1
 com.fasterxml.jackson.core:jackson-annotations = 2.22
-com.palantir.gradle.utils:* = 0.28.0
+com.palantir.gradle.utils:* = 0.29.0
 com.netflix.nebula:nebula-test = 12.1.0
 junit:junit = 4.13.2
 org.junit.jupiter:* = 6.1.3
